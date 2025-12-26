@@ -187,6 +187,74 @@ If successful, tell the user: **"Setup complete! You can now use Antigravity mod
 
 ---
 
+## Migration Guide
+
+### Upgrading to v1.2.5
+
+Version 1.2.5 introduces significant reliability improvements for Claude models. No breaking changes—existing configurations continue to work.
+
+#### What's New
+
+| Feature | Description |
+|---------|-------------|
+| **Session Recovery** | Auto-recovers from `tool_result_missing` errors |
+| **Defense-in-Depth Tool Pairing** | Multi-layer fix for "Could not process tool results" errors |
+| **Proactive Token Refresh** | Refreshes tokens 30min before expiry to prevent mid-session failures |
+| **Signature Caching** | Persistent disk cache for thinking block signatures |
+
+#### Upgrade Steps
+
+1. **Update the plugin version** in `~/.config/opencode/opencode.json`:
+
+   ```json
+   {
+     "plugin": ["opencode-antigravity-auth@1.2.5"]
+   }
+   ```
+
+2. **Restart OpenCode** to load the new version:
+
+   ```bash
+   # If OpenCode is running, exit and restart
+   opencode
+   ```
+
+3. **(Optional) Review new config options** in `~/.config/opencode/antigravity.json`:
+
+   ```json
+   {
+     "session_recovery": true,
+     "auto_resume": true,
+     "resume_text": "continue",
+     "tool_id_recovery": true,
+     "claude_tool_hardening": true,
+     "proactive_token_refresh": true,
+     "signature_cache": {
+       "enabled": true,
+       "memory_ttl_seconds": 3600,
+       "disk_ttl_seconds": 172800
+     }
+   }
+   ```
+
+   All new options are **enabled by default**—no action required for most users.
+
+#### Breaking Changes
+
+**None.** v1.2.5 is fully backward compatible.
+
+#### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Signature errors after upgrade | Delete `~/.config/opencode/antigravity-signature-cache.json` and restart |
+| Recovery not triggering | Ensure `session_recovery: true` in config (default) |
+| Old version still loading | Clear npm cache: `npm cache clean --force` and restart OpenCode |
+
+For detailed changes, see [docs/MILESTONE_v1.2.5.md](docs/MILESTONE_v1.2.5.md).
+
+---
+
 ## Available models
 
 Add these models to your `~/.config/opencode/opencode.json` under `provider.google.models`:
@@ -376,30 +444,92 @@ The `/connect` command in the TUI adds accounts non-destructively — it will ne
 
 ### Config file
 
-Create `~/.config/opencode/antigravity.json` for advanced settings:
+Create `~/.config/opencode/antigravity.json` (or `.opencode/antigravity.json` for project-specific settings):
 
 ```json
 {
+  "$schema": "https://raw.githubusercontent.com/NoeFabris/opencode-antigravity-auth/main/assets/antigravity.schema.json",
+  "quiet_mode": false,
+  "debug": false,
+  "log_dir": null,
+  "keep_thinking": false,
   "session_recovery": true,
   "auto_resume": true,
-  "resume_text": "continue"
+  "resume_text": "continue",
+  "empty_response_max_attempts": 4,
+  "empty_response_retry_delay_ms": 2000,
+  "tool_id_recovery": true,
+  "claude_tool_hardening": true,
+  "proactive_token_refresh": true,
+  "proactive_refresh_buffer_seconds": 1800,
+  "proactive_refresh_check_interval_seconds": 300,
+  "auto_update": true,
+  "signature_cache": {
+    "enabled": true,
+    "memory_ttl_seconds": 3600,
+    "disk_ttl_seconds": 172800,
+    "write_interval_seconds": 60
+  }
 }
 ```
 
+#### General Settings
+
 | Option | Default | Description |
 |--------|---------|-------------|
-| `session_recovery` | `true` | Enable automatic recovery from interrupted tool executions |
-| `auto_resume` | `true` | Automatically send resume prompt after recovery |
+| `quiet_mode` | `false` | Suppress toast notifications (except recovery) |
+| `debug` | `false` | Enable debug logging to file |
+| `log_dir` | OS default | Custom directory for debug logs |
+| `auto_update` | `true` | Enable automatic plugin updates |
+
+#### Session Recovery
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `session_recovery` | `true` | Auto-recover from tool_result_missing errors |
+| `auto_resume` | `true` | Auto-send resume prompt after recovery |
 | `resume_text` | `"continue"` | Text to send when auto-resuming |
+
+#### Thinking Blocks (Claude)
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `keep_thinking` | `false` | Preserve thinking blocks (may cause signature errors) |
+| `signature_cache.enabled` | `true` | Cache signatures to disk |
+| `signature_cache.memory_ttl_seconds` | `3600` | In-memory cache TTL |
+| `signature_cache.disk_ttl_seconds` | `172800` | Disk cache TTL (48h) |
+
+#### Error Recovery
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `empty_response_max_attempts` | `4` | Retries for empty API responses |
+| `empty_response_retry_delay_ms` | `2000` | Delay between retries |
+| `tool_id_recovery` | `true` | Fix mismatched tool IDs from context compaction |
+| `claude_tool_hardening` | `true` | Prevent tool parameter hallucination |
+
+#### Token Management
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `proactive_token_refresh` | `true` | Refresh tokens before expiry |
+| `proactive_refresh_buffer_seconds` | `1800` | Refresh 30min before expiry |
+| `proactive_refresh_check_interval_seconds` | `300` | Check interval (5min) |
 
 ### Environment variables
 
+Environment variables override config file values.
+
 | Variable | Values | Description |
 |----------|--------|-------------|
-| `OPENCODE_ANTIGRAVITY_DEBUG` | `1`, `2` | Debug logging level (2 = verbose) |
 | `OPENCODE_ANTIGRAVITY_QUIET` | `1` | Suppress toast notifications |
-| `OPENCODE_ANTIGRAVITY_KEEP_THINKING` | `1` | Preserve thinking blocks (experimental, may cause errors) |
+| `OPENCODE_ANTIGRAVITY_DEBUG` | `1`, `2` | Debug logging level (2 = verbose) |
 | `OPENCODE_ANTIGRAVITY_LOG_DIR` | path | Custom log directory |
+| `OPENCODE_ANTIGRAVITY_KEEP_THINKING` | `1` | Preserve thinking blocks |
+| `OPENCODE_ANTIGRAVITY_SESSION_RECOVERY` | `0`/`1` | Enable/disable session recovery |
+| `OPENCODE_ANTIGRAVITY_AUTO_RESUME` | `0`/`1` | Enable/disable auto-resume |
+| `OPENCODE_ANTIGRAVITY_RESUME_TEXT` | string | Custom resume text |
+| `OPENCODE_ANTIGRAVITY_AUTO_UPDATE` | `0`/`1` | Enable/disable auto-updates |
 
 ## Known plugin interactions
 
