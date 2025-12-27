@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { deduplicateAccountsByEmail, type AccountMetadata } from "./storage";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { deduplicateAccountsByEmail, migrateV2ToV3, loadAccounts, type AccountMetadata, type AccountStorage } from "./storage";
+import { promises as fs } from "node:fs";
 
 describe("deduplicateAccountsByEmail", () => {
   it("returns empty array for empty input", () => {
@@ -112,9 +113,8 @@ describe("deduplicateAccountsByEmail", () => {
     expect(result).toHaveLength(1);
     expect(result[0]?.refreshToken).toBe("token-10"); // The newest one
     expect(result[0]?.email).toBe("user@example.com");
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { migrateV2ToV3, loadAccounts, type AccountStorage } from "./storage";
-import { promises as fs } from "node:fs";
+  });
+});
 
 vi.mock("node:fs", async () => {
   const actual = await vi.importActual<typeof import("node:fs")>("node:fs");

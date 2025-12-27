@@ -263,7 +263,7 @@ export async function loadAccounts(): Promise<AccountStorageV3 | null> {
     }
 
     return {
-      version: 2,
+      version: 3,
       accounts: deduplicatedAccounts,
       activeIndex,
     };
