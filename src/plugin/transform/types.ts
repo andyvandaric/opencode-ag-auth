@@ -1,8 +1,4 @@
-/**
- * Transform Module Types
- * 
- * Shared types for Claude and Gemini request transformation.
- */
+import type { HeaderStyle } from "../../constants";
 
 export type ModelFamily = "claude" | "gemini-flash" | "gemini-pro";
 
@@ -97,4 +93,6 @@ export interface ResolvedModel {
   tier?: ThinkingTier;
   /** Whether this is a thinking-capable model */
   isThinkingModel?: boolean;
+  /** Quota preference based on :antigravity suffix */
+  quotaPreference?: HeaderStyle;
 }

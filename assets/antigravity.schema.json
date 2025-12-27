@@ -57,26 +57,25 @@
     },
     "signature_cache": {
       "type": "object",
-      "description": "Signature cache configuration for persisting thinking block signatures. Only used when keep_thinking is enabled.",
       "properties": {
         "enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable disk caching of signatures."
+          "description": "Enable disk caching of thinking block signatures."
         },
         "memory_ttl_seconds": {
           "type": "number",
           "minimum": 60,
           "maximum": 86400,
           "default": 3600,
-          "description": "In-memory TTL in seconds (default: 1 hour)."
+          "description": "In-memory TTL in seconds."
         },
         "disk_ttl_seconds": {
           "type": "number",
           "minimum": 3600,
           "maximum": 604800,
           "default": 172800,
-          "description": "Disk TTL in seconds (default: 48 hours)."
+          "description": "Disk TTL in seconds."
         },
         "write_interval_seconds": {
           "type": "number",
@@ -85,8 +84,52 @@
           "default": 60,
           "description": "Background write interval in seconds."
         }
-      }
+      },
+      "additionalProperties": false,
+      "description": "Signature cache configuration for persisting thinking block signatures. Only used when keep_thinking is enabled."
+    },
+    "empty_response_max_attempts": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 10,
+      "default": 4,
+      "description": "Maximum retry attempts when Antigravity returns an empty response (no candidates)."
+    },
+    "empty_response_retry_delay_ms": {
+      "type": "number",
+      "minimum": 500,
+      "maximum": 10000,
+      "default": 2000,
+      "description": "Delay in milliseconds between empty response retries."
+    },
+    "tool_id_recovery": {
+      "type": "boolean",
+      "default": true,
+      "description": "Enable tool ID orphan recovery. Matches mismatched tool responses by function name or creates placeholders."
+    },
+    "claude_tool_hardening": {
+      "type": "boolean",
+      "default": true,
+      "description": "Enable tool hallucination prevention for Claude models. Injects parameter signatures and strict usage rules."
+    },
+    "proactive_token_refresh": {
+      "type": "boolean",
+      "default": true,
+      "description": "Enable proactive background token refresh before expiry, ensuring requests never block."
+    },
+    "proactive_refresh_buffer_seconds": {
+      "type": "number",
+      "minimum": 60,
+      "maximum": 7200,
+      "default": 1800,
+      "description": "Seconds before token expiry to trigger proactive refresh."
+    },
+    "proactive_refresh_check_interval_seconds": {
+      "type": "number",
+      "minimum": 30,
+      "maximum": 1800,
+      "default": 300,
+      "description": "Interval between proactive refresh checks in seconds."
     }
-  },
-  "additionalProperties": false
+  }
 }

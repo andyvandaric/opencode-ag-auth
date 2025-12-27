@@ -1,5 +1,9 @@
 import { KEEP_THINKING_BLOCKS } from "../constants.js";
 import { createLogger } from "./logger";
+import {
+  EMPTY_SCHEMA_PLACEHOLDER_NAME,
+  EMPTY_SCHEMA_PLACEHOLDER_DESCRIPTION,
+} from "../constants";
 
 const log = createLogger("request-helpers");
 
@@ -527,12 +531,9 @@ function flattenTypeArrays(schema: any, nullableFields?: Map<string, string[]>, 
 
 /**
  * Phase 3: Removes unsupported keywords after hints have been extracted.
- *
- * IMPORTANT: Only removes JSON Schema keywords at the schema level, NOT property names.
- * For example, the JSON Schema `format` keyword (like `format: "email"`) should be removed,
- * but a property named `format` inside `properties` should be preserved.
+ * @param insideProperties - When true, keys are property NAMES (preserve); when false, keys are JSON Schema keywords (filter).
  */
-function removeUnsupportedKeywords(schema: any, isInsideProperties = false): any {
+function removeUnsupportedKeywords(schema: any, insideProperties: boolean = false): any {
   if (!schema || typeof schema !== "object") {
     return schema;
   }
@@ -543,17 +544,20 @@ function removeUnsupportedKeywords(schema: any, isInsideProperties = false): any
 
   const result: any = {};
   for (const [key, value] of Object.entries(schema)) {
-    // Skip unsupported keywords, BUT NOT if we're inside a "properties" object
-    // because those are property NAMES, not JSON Schema keywords
-    if (!isInsideProperties && (UNSUPPORTED_KEYWORDS as readonly string[]).includes(key)) {
+    if (!insideProperties && (UNSUPPORTED_KEYWORDS as readonly string[]).includes(key)) {
       continue;
     }
 
-    // Recursively process nested objects
-    // When processing "properties", mark that we're inside properties so child keys aren't filtered
     if (typeof value === "object" && value !== null) {
-      const isProperties = key === "properties";
-      result[key] = removeUnsupportedKeywords(value, isProperties);
+      if (key === "properties") {
+        const propertiesResult: any = {};
+        for (const [propName, propSchema] of Object.entries(value as object)) {
+          propertiesResult[propName] = removeUnsupportedKeywords(propSchema, false);
+        }
+        result[key] = propertiesResult;
+      } else {
+        result[key] = removeUnsupportedKeywords(value, false);
+      }
     } else {
       result[key] = value;
     }
@@ -623,12 +627,12 @@ function addEmptySchemaPlaceholder(schema: any): any {
 
     if (!hasProperties) {
       result.properties = {
-        reason: {
-          type: "string",
-          description: "Brief explanation of why you are calling this tool",
+        [EMPTY_SCHEMA_PLACEHOLDER_NAME]: {
+          type: "boolean",
+          description: EMPTY_SCHEMA_PLACEHOLDER_DESCRIPTION,
         },
       };
-      result.required = ["reason"];
+      result.required = [EMPTY_SCHEMA_PLACEHOLDER_NAME];
     }
   }
 
@@ -705,6 +709,7 @@ export interface AntigravityUsageMetadata {
   promptTokenCount?: number;
   candidatesTokenCount?: number;
   cachedContentTokenCount?: number;
+  thoughtsTokenCount?: number;
 }
 
 /**
@@ -1008,11 +1013,22 @@ function sanitizeThinkingPart(part: Record<string, unknown>): Record<string, unk
   return stripCacheControlRecursively(part) as Record<string, unknown>;
 }
 
+function findLastAssistantIndex(contents: any[], roleValue: "model" | "assistant"): number {
+  for (let i = contents.length - 1; i >= 0; i--) {
+    const content = contents[i];
+    if (content && typeof content === "object" && content.role === roleValue) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 function filterContentArray(
   contentArray: any[],
   sessionId?: string,
   getCachedSignatureFn?: (sessionId: string, text: string) => string | undefined,
   isClaudeModel?: boolean,
+  isLastAssistantMessage?: boolean,
 ): any[] {
   // For Claude models, strip thinking blocks by default for reliability
   // User can opt-in to keep thinking via OPENCODE_ANTIGRAVITY_KEEP_THINKING=1
@@ -1037,6 +1053,14 @@ function filterContentArray(
     const hasSignature = hasSignatureField(item);
 
     if (!isThinking && !hasSignature) {
+      filtered.push(item);
+      continue;
+    }
+
+    // CRITICAL: For the LAST assistant message, thinking blocks MUST remain byte-for-byte
+    // identical to what the API returned. Anthropic rejects any modification.
+    // Pass through unchanged - do NOT sanitize or reconstruct.
+    if (isLastAssistantMessage && (isThinking || hasSignature)) {
       filtered.push(item);
       continue;
     }
@@ -1081,10 +1105,14 @@ export function filterUnsignedThinkingBlocks(
   getCachedSignatureFn?: (sessionId: string, text: string) => string | undefined,
   isClaudeModel?: boolean,
 ): any[] {
-  return contents.map((content: any) => {
+  const lastAssistantIdx = findLastAssistantIndex(contents, "model");
+
+  return contents.map((content: any, idx: number) => {
     if (!content || typeof content !== "object") {
       return content;
     }
+
+    const isLastAssistant = idx === lastAssistantIdx;
 
     if (Array.isArray((content as any).parts)) {
       const filteredParts = filterContentArray(
@@ -1092,6 +1120,7 @@ export function filterUnsignedThinkingBlocks(
         sessionId,
         getCachedSignatureFn,
         isClaudeModel,
+        isLastAssistant,
       );
 
       const trimmedParts = (content as any).role === "model" && !isClaudeModel
@@ -1103,11 +1132,15 @@ export function filterUnsignedThinkingBlocks(
 
     if (Array.isArray((content as any).content)) {
       const isAssistantRole = (content as any).role === "assistant";
+      const isLastAssistantContent = idx === lastAssistantIdx || 
+        (isAssistantRole && idx === findLastAssistantIndex(contents, "assistant"));
+      
       const filteredContent = filterContentArray(
         (content as any).content,
         sessionId,
         getCachedSignatureFn,
         isClaudeModel,
+        isLastAssistantContent,
       );
 
       const trimmedContent = isAssistantRole && !isClaudeModel
@@ -1130,18 +1163,23 @@ export function filterMessagesThinkingBlocks(
   getCachedSignatureFn?: (sessionId: string, text: string) => string | undefined,
   isClaudeModel?: boolean,
 ): any[] {
-  return messages.map((message: any) => {
+  const lastAssistantIdx = findLastAssistantIndex(messages, "assistant");
+
+  return messages.map((message: any, idx: number) => {
     if (!message || typeof message !== "object") {
       return message;
     }
 
     if (Array.isArray((message as any).content)) {
       const isAssistantRole = (message as any).role === "assistant";
+      const isLastAssistant = isAssistantRole && idx === lastAssistantIdx;
+      
       const filteredContent = filterContentArray(
         (message as any).content,
         sessionId,
         getCachedSignatureFn,
         isClaudeModel,
+        isLastAssistant,
       );
 
       const trimmedContent = isAssistantRole && !isClaudeModel
@@ -1230,19 +1268,23 @@ function transformGeminiCandidate(candidate: any): any {
     // Handle Gemini-style: thought: true
     if (part.thought === true) {
       thinkingTexts.push(part.text || "");
-      return { ...part, type: "reasoning" };
+      const transformed: Record<string, unknown> = { ...part, type: "reasoning" };
+      if (part.cache_control) transformed.cache_control = part.cache_control;
+      return transformed;
     }
 
     // Handle Anthropic-style in candidates: type: "thinking"
     if (part.type === "thinking") {
       const thinkingText = part.thinking || part.text || "";
       thinkingTexts.push(thinkingText);
-      return {
+      const transformed: Record<string, unknown> = {
         ...part,
         type: "reasoning",
         text: thinkingText,
         thought: true,
       };
+      if (part.cache_control) transformed.cache_control = part.cache_control;
+      return transformed;
     }
 
     // Handle functionCall: parse JSON strings in args
@@ -1392,6 +1434,7 @@ export function extractUsageMetadata(body: AntigravityApiBody): AntigravityUsage
     promptTokenCount: toNumber(asRecord.promptTokenCount),
     candidatesTokenCount: toNumber(asRecord.candidatesTokenCount),
     cachedContentTokenCount: toNumber(asRecord.cachedContentTokenCount),
+    thoughtsTokenCount: toNumber(asRecord.thoughtsTokenCount),
   };
 }
 
@@ -2264,6 +2307,11 @@ export function injectParameterSignatures(
     if (!Array.isArray(declarations)) return tool;
 
     const newDeclarations = declarations.map((decl: any) => {
+      // Skip if signature already injected (avoids duplicate injection)
+      if (decl.description?.includes("STRICT PARAMETERS:")) {
+        return decl;
+      }
+
       const schema = decl.parameters || decl.parametersJsonSchema;
       if (!schema) return decl;
 
@@ -2303,10 +2351,18 @@ export function injectToolHardeningInstruction(
 ): void {
   if (!instructionText) return;
 
+  // Skip if instruction already present (avoids duplicate injection)
+  const existing = payload.systemInstruction as Record<string, unknown> | undefined;
+  if (existing && typeof existing === "object" && "parts" in existing) {
+    const parts = existing.parts as Array<{ text?: string }>;
+    if (Array.isArray(parts) && parts.some(p => p.text?.includes("CRITICAL TOOL USAGE INSTRUCTIONS"))) {
+      return;
+    }
+  }
+
   const instructionPart = { text: instructionText };
 
   if (payload.systemInstruction) {
-    const existing = payload.systemInstruction as Record<string, unknown>;
     if (existing && typeof existing === "object" && "parts" in existing) {
       const parts = existing.parts as unknown[];
       if (Array.isArray(parts)) {
@@ -2329,5 +2385,148 @@ export function injectToolHardeningInstruction(
       parts: [instructionPart],
     };
   }
+}
+
+// ============================================================================
+// TOOL PROCESSING FOR WRAPPED REQUESTS
+// Shared logic for assigning tool IDs and fixing tool pairing
+// ============================================================================
+
+/**
+ * Assigns IDs to functionCall parts and returns the pending call IDs by name.
+ * This is the first pass of tool ID assignment.
+ * 
+ * @param contents - Gemini-style contents array
+ * @returns Object with modified contents and pending call IDs map
+ */
+export function assignToolIdsToContents(
+  contents: any[]
+): { contents: any[]; pendingCallIdsByName: Map<string, string[]>; toolCallCounter: number } {
+  if (!Array.isArray(contents)) {
+    return { contents, pendingCallIdsByName: new Map(), toolCallCounter: 0 };
+  }
+
+  let toolCallCounter = 0;
+  const pendingCallIdsByName = new Map<string, string[]>();
+
+  const newContents = contents.map((content: any) => {
+    if (!content || !Array.isArray(content.parts)) {
+      return content;
+    }
+
+    const newParts = content.parts.map((part: any) => {
+      if (part && typeof part === "object" && part.functionCall) {
+        const call = { ...part.functionCall };
+        if (!call.id) {
+          call.id = `tool-call-${++toolCallCounter}`;
+        }
+        const nameKey = typeof call.name === "string" ? call.name : `tool-${toolCallCounter}`;
+        const queue = pendingCallIdsByName.get(nameKey) || [];
+        queue.push(call.id);
+        pendingCallIdsByName.set(nameKey, queue);
+        return { ...part, functionCall: call };
+      }
+      return part;
+    });
+
+    return { ...content, parts: newParts };
+  });
+
+  return { contents: newContents, pendingCallIdsByName, toolCallCounter };
+}
+
+/**
+ * Matches functionResponse IDs to their corresponding functionCall IDs.
+ * This is the second pass of tool ID assignment.
+ * 
+ * @param contents - Gemini-style contents array
+ * @param pendingCallIdsByName - Map of function names to pending call IDs
+ * @returns Modified contents with matched response IDs
+ */
+export function matchResponseIdsToContents(
+  contents: any[],
+  pendingCallIdsByName: Map<string, string[]>
+): any[] {
+  if (!Array.isArray(contents)) {
+    return contents;
+  }
+
+  return contents.map((content: any) => {
+    if (!content || !Array.isArray(content.parts)) {
+      return content;
+    }
+
+    const newParts = content.parts.map((part: any) => {
+      if (part && typeof part === "object" && part.functionResponse) {
+        const resp = { ...part.functionResponse };
+        if (!resp.id && typeof resp.name === "string") {
+          const queue = pendingCallIdsByName.get(resp.name);
+          if (queue && queue.length > 0) {
+            resp.id = queue.shift();
+            pendingCallIdsByName.set(resp.name, queue);
+          }
+        }
+        return { ...part, functionResponse: resp };
+      }
+      return part;
+    });
+
+    return { ...content, parts: newParts };
+  });
+}
+
+/**
+ * Applies all tool fixes to a request payload for Claude models.
+ * This includes:
+ * 1. Tool ID assignment for functionCalls
+ * 2. Response ID matching for functionResponses
+ * 3. Orphan recovery via fixToolResponseGrouping
+ * 4. Claude format pairing fix via validateAndFixClaudeToolPairing
+ * 
+ * @param payload - Request payload object
+ * @param isClaude - Whether this is a Claude model request
+ * @returns Object with fix applied status
+ */
+export function applyToolPairingFixes(
+  payload: Record<string, unknown>,
+  isClaude: boolean
+): { contentsFixed: boolean; messagesFixed: boolean } {
+  let contentsFixed = false;
+  let messagesFixed = false;
+
+  if (!isClaude) {
+    return { contentsFixed, messagesFixed };
+  }
+
+  // Fix Gemini format (contents[])
+  if (Array.isArray(payload.contents)) {
+    // First pass: assign IDs to functionCalls
+    const { contents: contentsWithIds, pendingCallIdsByName } = assignToolIdsToContents(
+      payload.contents as any[]
+    );
+
+    // Second pass: match functionResponse IDs
+    const contentsWithMatchedIds = matchResponseIdsToContents(contentsWithIds, pendingCallIdsByName);
+
+    // Third pass: fix orphan recovery
+    payload.contents = fixToolResponseGrouping(contentsWithMatchedIds);
+    contentsFixed = true;
+
+    log.debug("Applied tool pairing fixes to contents[]", {
+      originalLength: (payload.contents as any[]).length,
+    });
+  }
+
+  // Fix Claude format (messages[])
+  if (Array.isArray(payload.messages)) {
+    payload.messages = validateAndFixClaudeToolPairing(payload.messages as any[]);
+    messagesFixed = true;
+
+    log.debug("Applied tool pairing fixes to messages[]", {
+      originalLength: (payload.messages as any[]).length,
+    });
+  }
+
+  return { contentsFixed, messagesFixed };
 }
 

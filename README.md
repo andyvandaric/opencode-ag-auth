@@ -9,7 +9,7 @@ Enable Opencode to authenticate against **Antigravity** (Google's IDE) via OAuth
 
 - **Google OAuth sign-in** (multi-account via `opencode auth login`) with automatic token refresh
 - **Multi-account load balancing** Automatically cycle through multiple Google accounts to maximize throughput
-- **Two quota sources for Gemini** Automatic fallback between **Antigravity quota** and **Gemini CLI quota** (same account) before switching accounts
+- **Two quota sources for Gemini** Choose between **Antigravity quota** (`antigravity-` prefix) or **Gemini CLI quota** (no prefix) per request
 - **Real-time SSE streaming** including thinking blocks and incremental output
 - **Advanced Claude support** Interleaved thinking, stable multi-turn signatures, and validated tool calling
 - **Automatic endpoint fallback** between Antigravity API endpoints (daily → autopush → prod)
@@ -43,7 +43,7 @@ If the agent only installs the plugin, ask it to also add models under `provider
 
    ```json
    {
-     "plugin": ["opencode-antigravity-auth@1.2.6"]
+     "plugin": ["opencode-antigravity-auth@1.2.7"]
    }
    ```
 
@@ -59,34 +59,34 @@ If the agent only installs the plugin, ask it to also add models under `provider
 
    Add the models you want to use to the same config file:
 
-   ```json
-   {
-     "plugin": ["opencode-antigravity-auth@1.2.6"],
-     "provider": {
-       "google": {
-         "models": {
-           "gemini-3-pro-high": {
-             "name": "Gemini 3 Pro High (Antigravity)",
-             "limit": { "context": 1048576, "output": 65535 },
-             "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
-           },
-           "claude-sonnet-4-5": {
-             "name": "Claude Sonnet 4.5 (Antigravity)",
-             "limit": { "context": 200000, "output": 64000 },
-             "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
-           }
-         }
-       }
-     }
-   }
-   ```
+    ```json
+    {
+      "plugin": ["opencode-antigravity-auth@1.2.7"],
+      "provider": {
+        "google": {
+          "models": {
+            "antigravity-gemini-3-pro-high": {
+              "name": "Gemini 3 Pro High (Antigravity)",
+              "limit": { "context": 1048576, "output": 65535 },
+              "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
+            },
+            "antigravity-claude-sonnet-4-5": {
+              "name": "Claude Sonnet 4.5 (Antigravity)",
+              "limit": { "context": 200000, "output": 64000 },
+              "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
+            }
+          }
+        }
+      }
+    }
+    ```
 
    > See [Available models](#available-models) for the full list.
 
 4. **Use it:**
 
    ```bash
-   opencode run "Hello" --model=google/gemini-3-pro-high
+   opencode run "Hello" --model=google/antigravity-gemini-3-pro-high
    ```
 
 ---
@@ -111,14 +111,14 @@ mkdir -p ~/.config/opencode
 
 if [ -f ~/.config/opencode/opencode.json ]; then
     if command -v jq &> /dev/null; then
-        jq '.plugin = ((.plugin // []) + ["opencode-antigravity-auth@1.2.6"] | unique)' \
+        jq '.plugin = ((.plugin // []) + ["opencode-antigravity-auth@1.2.7"] | unique)' \
             ~/.config/opencode/opencode.json > /tmp/oc.json && \
             mv /tmp/oc.json ~/.config/opencode/opencode.json
     else
-        echo "Add \"opencode-antigravity-auth@1.2.6\" to the plugin array manually"
+        echo "Add \"opencode-antigravity-auth@1.2.7\" to the plugin array manually"
     fi
 else
-    echo '{"plugin":["opencode-antigravity-auth@1.2.6"]}' > ~/.config/opencode/opencode.json
+    echo '{"plugin":["opencode-antigravity-auth@1.2.7"]}' > ~/.config/opencode/opencode.json
 fi
 ```
 
@@ -157,17 +157,18 @@ Merge model definitions into the user's config file (`~/.config/opencode/opencod
 # If jq is available, merge models programmatically
 if command -v jq &> /dev/null; then
     jq '.provider.google.models = {
-      "gemini-3-pro-low": {"name": "Gemini 3 Pro Low (Antigravity)", "limit": {"context": 1048576, "output": 65535}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
-      "gemini-3-pro-high": {"name": "Gemini 3 Pro High (Antigravity)", "limit": {"context": 1048576, "output": 65535}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
-      "gemini-3-flash": {"name": "Gemini 3 Flash (Antigravity)", "limit": {"context": 1048576, "output": 65536}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
-      "claude-sonnet-4-5": {"name": "Claude Sonnet 4.5 (Antigravity)", "limit": {"context": 200000, "output": 64000}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
-      "claude-sonnet-4-5-thinking-low": {"name": "Claude Sonnet 4.5 Thinking Low (Antigravity)", "limit": {"context": 200000, "output": 64000}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
-      "claude-sonnet-4-5-thinking-medium": {"name": "Claude Sonnet 4.5 Thinking Medium (Antigravity)", "limit": {"context": 200000, "output": 64000}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
-      "claude-sonnet-4-5-thinking-high": {"name": "Claude Sonnet 4.5 Thinking High (Antigravity)", "limit": {"context": 200000, "output": 64000}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
-      "claude-opus-4-5-thinking-low": {"name": "Claude Opus 4.5 Thinking Low (Antigravity)", "limit": {"context": 200000, "output": 64000}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
-      "claude-opus-4-5-thinking-medium": {"name": "Claude Opus 4.5 Thinking Medium (Antigravity)", "limit": {"context": 200000, "output": 64000}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
-      "claude-opus-4-5-thinking-high": {"name": "Claude Opus 4.5 Thinking High (Antigravity)", "limit": {"context": 200000, "output": 64000}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
-      "gpt-oss-120b-medium": {"name": "GPT-OSS 120B Medium (Antigravity)", "limit": {"context": 131072, "output": 32768}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}}
+      "antigravity-gemini-3-pro-low": {"name": "Gemini 3 Pro Low (Antigravity)", "limit": {"context": 1048576, "output": 65535}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
+      "antigravity-gemini-3-pro-medium": {"name": "Gemini 3 Pro Medium (Antigravity)", "limit": {"context": 1048576, "output": 65535}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
+      "antigravity-gemini-3-pro-high": {"name": "Gemini 3 Pro High (Antigravity)", "limit": {"context": 1048576, "output": 65535}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
+      "antigravity-gemini-3-flash": {"name": "Gemini 3 Flash (Antigravity)", "limit": {"context": 1048576, "output": 65536}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
+      "antigravity-claude-sonnet-4-5": {"name": "Claude Sonnet 4.5 (Antigravity)", "limit": {"context": 200000, "output": 64000}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
+      "antigravity-claude-sonnet-4-5-thinking-low": {"name": "Claude Sonnet 4.5 Thinking Low (Antigravity)", "limit": {"context": 200000, "output": 64000}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
+      "antigravity-claude-sonnet-4-5-thinking-medium": {"name": "Claude Sonnet 4.5 Thinking Medium (Antigravity)", "limit": {"context": 200000, "output": 64000}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
+      "antigravity-claude-sonnet-4-5-thinking-high": {"name": "Claude Sonnet 4.5 Thinking High (Antigravity)", "limit": {"context": 200000, "output": 64000}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
+      "antigravity-claude-opus-4-5-thinking-low": {"name": "Claude Opus 4.5 Thinking Low (Antigravity)", "limit": {"context": 200000, "output": 64000}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
+      "antigravity-claude-opus-4-5-thinking-medium": {"name": "Claude Opus 4.5 Thinking Medium (Antigravity)", "limit": {"context": 200000, "output": 64000}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
+      "antigravity-claude-opus-4-5-thinking-high": {"name": "Claude Opus 4.5 Thinking High (Antigravity)", "limit": {"context": 200000, "output": 64000}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}},
+      "antigravity-gpt-oss-120b-medium": {"name": "GPT-OSS 120B Medium (Antigravity)", "limit": {"context": 131072, "output": 32768}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}}
     } + (.provider.google.models // {})' ~/.config/opencode/opencode.json > /tmp/oc.json && mv /tmp/oc.json ~/.config/opencode/opencode.json
 fi
 ```
@@ -177,7 +178,7 @@ Or edit the file manually and add the models from the [Available models](#availa
 #### Step 6: Verify setup
 
 ```bash
-opencode run "Hello" --model=google/gemini-3-pro-high
+opencode run "Hello" --model=google/antigravity-gemini-3-pro-high
 ```
 
 If successful, tell the user: **"Setup complete! You can now use Antigravity models in OpenCode."**
@@ -188,18 +189,15 @@ If successful, tell the user: **"Setup complete! You can now use Antigravity mod
 
 ## Migration Guide
 
-### Upgrading to v1.2.5
+### Upgrading to v1.2.7
 
-Version 1.2.5 introduces significant reliability improvements for Claude models. No breaking changes—existing configurations continue to work.
+Version 1.2.7 standardizes model naming with the `antigravity-` prefix for all models using Antigravity quota.
 
-#### What's New
+#### What Changed
 
-| Feature | Description |
-|---------|-------------|
-| **Session Recovery** | Auto-recovers from `tool_result_missing` errors |
-| **Defense-in-Depth Tool Pairing** | Multi-layer fix for "Could not process tool results" errors |
-| **Proactive Token Refresh** | Refreshes tokens 30min before expiry to prevent mid-session failures |
-| **Signature Caching** | Persistent disk cache for thinking block signatures |
+All Antigravity-routed models now use the `antigravity-` prefix consistently. This ensures clear distinction between:
+- **Antigravity models** (`antigravity-gemini-3-pro-high`) → Routed through this plugin, uses Antigravity quota
+- **Gemini CLI models** (`gemini-2.5-flash`) → Handled by OpenCode's built-in Gemini support, uses Gemini CLI quota
 
 #### Upgrade Steps
 
@@ -207,35 +205,82 @@ Version 1.2.5 introduces significant reliability improvements for Claude models.
 
    ```json
    {
-     "plugin": ["opencode-antigravity-auth@1.2.6"]
+     "plugin": ["opencode-antigravity-auth@1.2.7"]
    }
    ```
 
-2. **Update model names to new thinking budget format** (REQUIRED for thinking models):
+2. **Add `antigravity-` prefix to your model IDs:**
 
-   The old generic `-thinking` suffix is now replaced with explicit budget tiers:
+   | Old Model ID | New Model ID |
+   |--------------|--------------|
+   | `gemini-3-pro-high` | `antigravity-gemini-3-pro-high` |
+   | `gemini-3-flash` | `antigravity-gemini-3-flash` |
+   | `claude-sonnet-4-5` | `antigravity-claude-sonnet-4-5` |
+   | `claude-opus-4-5-thinking-high` | `antigravity-claude-opus-4-5-thinking-high` |
 
-   | Old Model ID (deprecated) | New Model ID | Thinking Budget |
-   |---------------------------|--------------|-----------------|
-   | `claude-sonnet-4-5-thinking` | `claude-sonnet-4-5-thinking-low` | 8,192 tokens |
-   | `claude-sonnet-4-5-thinking` | `claude-sonnet-4-5-thinking-medium` | 16,384 tokens |
-   | `claude-sonnet-4-5-thinking` | `claude-sonnet-4-5-thinking-high` | 32,768 tokens |
-   | `claude-opus-4-5-thinking` | `claude-opus-4-5-thinking-low` | 8,192 tokens |
-   | `claude-opus-4-5-thinking` | `claude-opus-4-5-thinking-medium` | 16,384 tokens |
-   | `claude-opus-4-5-thinking` | `claude-opus-4-5-thinking-high` | 32,768 tokens |
+3. **Replace your model configuration** in `~/.config/opencode/opencode.json`:
 
-   Update your `~/.config/opencode/opencode.json`:
+   Copy the full configuration from the [Full model configuration](#available-models) section, or use this complete config:
 
-   ```diff
+   ```json
    {
+     "plugin": ["opencode-antigravity-auth@1.2.7"],
      "provider": {
        "google": {
          "models": {
-   -       "claude-sonnet-4-5-thinking": {
-   -         "name": "Claude Sonnet 4.5 Thinking (Antigravity)",
-   +       "claude-sonnet-4-5-thinking-medium": {
-   +         "name": "Claude Sonnet 4.5 Thinking Medium (Antigravity)",
+           "antigravity-gemini-3-pro-low": {
+             "name": "Gemini 3 Pro Low (Antigravity)",
+             "limit": { "context": 1048576, "output": 65535 },
+             "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
+           },
+           "antigravity-gemini-3-pro-high": {
+             "name": "Gemini 3 Pro High (Antigravity)",
+             "limit": { "context": 1048576, "output": 65535 },
+             "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
+           },
+            "antigravity-gemini-3-flash": {
+              "name": "Gemini 3 Flash (Antigravity)",
+              "limit": { "context": 1048576, "output": 65536 },
+              "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
+            },
+           "antigravity-claude-sonnet-4-5": {
+             "name": "Claude Sonnet 4.5 (Antigravity)",
              "limit": { "context": 200000, "output": 64000 },
+             "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
+           },
+           "antigravity-claude-sonnet-4-5-thinking-low": {
+             "name": "Claude Sonnet 4.5 Thinking Low (Antigravity)",
+             "limit": { "context": 200000, "output": 64000 },
+             "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
+           },
+           "antigravity-claude-sonnet-4-5-thinking-medium": {
+             "name": "Claude Sonnet 4.5 Thinking Medium (Antigravity)",
+             "limit": { "context": 200000, "output": 64000 },
+             "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
+           },
+           "antigravity-claude-sonnet-4-5-thinking-high": {
+             "name": "Claude Sonnet 4.5 Thinking High (Antigravity)",
+             "limit": { "context": 200000, "output": 64000 },
+             "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
+           },
+           "antigravity-claude-opus-4-5-thinking-low": {
+             "name": "Claude Opus 4.5 Thinking Low (Antigravity)",
+             "limit": { "context": 200000, "output": 64000 },
+             "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
+           },
+           "antigravity-claude-opus-4-5-thinking-medium": {
+             "name": "Claude Opus 4.5 Thinking Medium (Antigravity)",
+             "limit": { "context": 200000, "output": 64000 },
+             "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
+           },
+           "antigravity-claude-opus-4-5-thinking-high": {
+             "name": "Claude Opus 4.5 Thinking High (Antigravity)",
+             "limit": { "context": 200000, "output": 64000 },
+             "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
+           },
+           "antigravity-gpt-oss-120b-medium": {
+             "name": "GPT-OSS 120B Medium (Antigravity)",
+             "limit": { "context": 131072, "output": 32768 },
              "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
            }
          }
@@ -244,48 +289,7 @@ Version 1.2.5 introduces significant reliability improvements for Claude models.
    }
    ```
 
-   > **Tip:** Use `-medium` as a balanced default. Use `-high` for complex reasoning tasks, `-low` for faster responses.
-
-3. **Restart OpenCode** to load the new version:
-
-   ```bash
-   # If OpenCode is running, exit and restart
-   opencode
-   ```
-
-4. **(Optional) Review new config options** in `~/.config/opencode/antigravity.json`:
-
-   ```json
-   {
-     "session_recovery": true,
-     "auto_resume": true,
-     "resume_text": "continue",
-     "tool_id_recovery": true,
-     "claude_tool_hardening": true,
-     "proactive_token_refresh": true,
-     "signature_cache": {
-       "enabled": true,
-       "memory_ttl_seconds": 3600,
-       "disk_ttl_seconds": 172800
-     }
-   }
-   ```
-
-   All new options are **enabled by default**—no action required for most users.
-
-#### Breaking Changes
-
-**None.** v1.2.5 is fully backward compatible.
-
-#### Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| Signature errors after upgrade | Delete `~/.config/opencode/antigravity-signature-cache.json` and restart |
-| Recovery not triggering | Ensure `session_recovery: true` in config (default) |
-| Old version still loading | Clear npm cache: `npm cache clean --force` and restart OpenCode |
-
-For detailed changes, see [docs/MILESTONE_v1.2.5.md](docs/MILESTONE_v1.2.5.md).
+4. **Restart OpenCode** to load the new version.
 
 ---
 
@@ -293,31 +297,35 @@ For detailed changes, see [docs/MILESTONE_v1.2.5.md](docs/MILESTONE_v1.2.5.md).
 
 Add these models to your `~/.config/opencode/opencode.json` under `provider.google.models`:
 
-### Gemini Models
+> **Two Gemini sources:** This plugin provides Antigravity-routed Gemini models (`antigravity-` prefix). OpenCode also has built-in Gemini CLI support (no prefix, e.g., `gemini-2.5-flash`). See [How Quota Routing Works](#how-quota-routing-works) for details.
 
-| Model ID | Description | Thinking |
-|----------|-------------|----------|
-| `gemini-3-pro-low` | Gemini 3 Pro (low thinking) | thinkingLevel: "low" |
-| `gemini-3-pro-high` | Gemini 3 Pro (high thinking) | thinkingLevel: "high" |
-| `gemini-3-flash` | Gemini 3 Flash | Default |
+### Gemini Models (Antigravity)
+
+| Model ID | Description | Thinking | Quota |
+|----------|-------------|----------|-------|
+| `antigravity-gemini-3-pro-low` | Gemini 3 Pro (low thinking) | thinkingLevel: "low" | Antigravity |
+| `antigravity-gemini-3-pro-high` | Gemini 3 Pro (high thinking) | thinkingLevel: "high" | Antigravity |
+| `antigravity-gemini-3-flash` | Gemini 3 Flash | Default | Antigravity |
 
 ### Claude Models
 
 | Model ID | Description | Thinking Budget |
 |----------|-------------|-----------------|
-| `claude-sonnet-4-5` | Claude Sonnet 4.5 (no thinking) | None |
-| `claude-sonnet-4-5-thinking-low` | Claude Sonnet 4.5 Thinking | 8,192 tokens |
-| `claude-sonnet-4-5-thinking-medium` | Claude Sonnet 4.5 Thinking | 16,384 tokens |
-| `claude-sonnet-4-5-thinking-high` | Claude Sonnet 4.5 Thinking | 32,768 tokens |
-| `claude-opus-4-5-thinking-low` | Claude Opus 4.5 Thinking | 8,192 tokens |
-| `claude-opus-4-5-thinking-medium` | Claude Opus 4.5 Thinking | 16,384 tokens |
-| `claude-opus-4-5-thinking-high` | Claude Opus 4.5 Thinking | 32,768 tokens |
+| `antigravity-claude-sonnet-4-5` | Claude Sonnet 4.5 (no thinking) | None |
+| `antigravity-claude-sonnet-4-5-thinking-low` | Claude Sonnet 4.5 Thinking | 8,192 tokens |
+| `antigravity-claude-sonnet-4-5-thinking-medium` | Claude Sonnet 4.5 Thinking | 16,384 tokens |
+| `antigravity-claude-sonnet-4-5-thinking-high` | Claude Sonnet 4.5 Thinking | 32,768 tokens |
+| `antigravity-claude-opus-4-5-thinking-low` | Claude Opus 4.5 Thinking | 8,192 tokens |
+| `antigravity-claude-opus-4-5-thinking-medium` | Claude Opus 4.5 Thinking | 16,384 tokens |
+| `antigravity-claude-opus-4-5-thinking-high` | Claude Opus 4.5 Thinking | 32,768 tokens |
+
+> **Note:** Claude and GPT models are only available through Antigravity API. The `antigravity-` prefix is required for these models.
 
 ### Other Models
 
 | Model ID | Description |
 |----------|-------------|
-| `gpt-oss-120b-medium` | GPT-OSS 120B Medium |
+| `antigravity-gpt-oss-120b-medium` | GPT-OSS 120B Medium |
 
 > **Tier suffixes:** Use `-low`, `-medium`, or `-high` to control thinking budget. Higher tiers = more reasoning tokens.
 
@@ -329,57 +337,57 @@ Add these models to your `~/.config/opencode/opencode.json` under `provider.goog
   "provider": {
     "google": {
       "models": {
-        "gemini-3-pro-low": {
+        "antigravity-gemini-3-pro-low": {
           "name": "Gemini 3 Pro Low (Antigravity)",
           "limit": { "context": 1048576, "output": 65535 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
         },
-        "gemini-3-pro-high": {
+        "antigravity-gemini-3-pro-high": {
           "name": "Gemini 3 Pro High (Antigravity)",
           "limit": { "context": 1048576, "output": 65535 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
         },
-        "gemini-3-flash": {
+        "antigravity-gemini-3-flash": {
           "name": "Gemini 3 Flash (Antigravity)",
           "limit": { "context": 1048576, "output": 65536 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
         },
-        "claude-sonnet-4-5": {
+        "antigravity-claude-sonnet-4-5": {
           "name": "Claude Sonnet 4.5 (Antigravity)",
           "limit": { "context": 200000, "output": 64000 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
         },
-        "claude-sonnet-4-5-thinking-low": {
+        "antigravity-claude-sonnet-4-5-thinking-low": {
           "name": "Claude Sonnet 4.5 Thinking Low (Antigravity)",
           "limit": { "context": 200000, "output": 64000 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
         },
-        "claude-sonnet-4-5-thinking-medium": {
+        "antigravity-claude-sonnet-4-5-thinking-medium": {
           "name": "Claude Sonnet 4.5 Thinking Medium (Antigravity)",
           "limit": { "context": 200000, "output": 64000 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
         },
-        "claude-sonnet-4-5-thinking-high": {
+        "antigravity-claude-sonnet-4-5-thinking-high": {
           "name": "Claude Sonnet 4.5 Thinking High (Antigravity)",
           "limit": { "context": 200000, "output": 64000 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
         },
-        "claude-opus-4-5-thinking-low": {
+        "antigravity-claude-opus-4-5-thinking-low": {
           "name": "Claude Opus 4.5 Thinking Low (Antigravity)",
           "limit": { "context": 200000, "output": 64000 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
         },
-        "claude-opus-4-5-thinking-medium": {
+        "antigravity-claude-opus-4-5-thinking-medium": {
           "name": "Claude Opus 4.5 Thinking Medium (Antigravity)",
           "limit": { "context": 200000, "output": 64000 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
         },
-        "claude-opus-4-5-thinking-high": {
+        "antigravity-claude-opus-4-5-thinking-high": {
           "name": "Claude Opus 4.5 Thinking High (Antigravity)",
           "limit": { "context": 200000, "output": 64000 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
         },
-        "gpt-oss-120b-medium": {
+        "antigravity-gpt-oss-120b-medium": {
           "name": "GPT-OSS 120B Medium (Antigravity)",
           "limit": { "context": 131072, "output": 32768 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
@@ -391,6 +399,61 @@ Add these models to your `~/.config/opencode/opencode.json` under `provider.goog
 ```
 
 </details>
+
+## How Quota Routing Works
+
+This plugin gives you access to **two separate quota pools** for Gemini models, allowing you to maximize your usage by switching between them.
+
+### Two Gemini Model Sources
+
+| Source | Model ID Example | Handled By | Quota Pool |
+|--------|------------------|------------|------------|
+| **Antigravity** | `google/antigravity-gemini-3-pro-high` | This plugin | Antigravity quota |
+| **Gemini CLI** | `google/gemini-2.5-flash` | OpenCode built-in | Gemini CLI quota |
+
+### Request Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Request Routing                             │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  google/antigravity-gemini-3-pro-high                               │
+│     └─→ This plugin intercepts (has "antigravity-" prefix)          │
+│         └─→ Routes to Antigravity API                               │
+│             └─→ Uses YOUR Antigravity quota                         │
+│                                                                     │
+│  google/gemini-2.5-flash (no prefix)                                │
+│     └─→ This plugin ignores (no "antigravity-" prefix)              │
+│         └─→ Falls through to OpenCode's built-in Gemini handler     │
+│             └─→ Uses YOUR Gemini CLI quota                          │
+│                                                                     │
+│  google/antigravity-claude-sonnet-4-5                               │
+│     └─→ This plugin intercepts (Claude only via Antigravity)        │
+│         └─→ Routes to Antigravity API                               │
+│             └─→ Uses YOUR Antigravity quota                         │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Routing Examples
+
+| Model ID | Routed Via | Quota Used |
+|----------|------------|------------|
+| `google/antigravity-gemini-3-pro-high` | This plugin | Antigravity |
+| `google/antigravity-gemini-3-flash` | This plugin | Antigravity |
+| `google/gemini-2.5-flash` | OpenCode built-in | Gemini CLI |
+| `google/gemini-2.5-pro` | OpenCode built-in | Gemini CLI |
+| `google/antigravity-claude-sonnet-4-5` | This plugin | Antigravity |
+| `google/antigravity-claude-opus-4-5-thinking-high` | This plugin | Antigravity |
+
+### Why This Matters
+
+- **Double your Gemini quota:** Use both Antigravity and Gemini CLI pools by switching model prefixes
+- **Automatic failover strategy:** When Antigravity quota is exhausted, switch to non-prefixed Gemini models
+- **Claude/GPT require Antigravity:** These models are only available through Antigravity API, so they always need the `antigravity-` prefix
+
+> **Tip:** Configure both prefixed (`antigravity-gemini-3-pro-high`) and non-prefixed (`gemini-2.5-flash`) Gemini models in your config to maximize quota availability.
 
 ## Multi-account load balancing
 
@@ -411,22 +474,14 @@ The plugin supports multiple Google accounts to maximize rate limits and provide
 
 ### Dual quota pools (Gemini only)
 
-For Gemini models, the plugin can access **two independent quota pools** using the same Google account:
+Gemini models can access **two independent quota pools**. See [How Quota Routing Works](#how-quota-routing-works) for details.
 
-| Quota Pool | Headers Used | When Used |
-|------------|--------------|-----------|
-| **Antigravity** | Antigravity headers | Primary (tried first) |
-| **Gemini CLI** | Gemini CLI headers | Fallback when Antigravity is rate-limited |
+| Quota Pool | Model ID Example | Endpoint |
+|------------|------------------|----------|
+| **Antigravity** | `antigravity-gemini-3-pro-high` | `daily-cloudcode-pa.sandbox.googleapis.com` |
+| **Gemini CLI** | `gemini-2.5-flash` (no prefix) | `cloudcode-pa.googleapis.com` |
 
-This effectively **doubles your Gemini quota** per account. 
-
-**How it works:**
-1. Plugin tries Antigravity quota first
-2. If rate-limited (429), it automatically retries using Gemini CLI headers
-3. Only if **both** pools are exhausted does it switch to the next account
-4. This happens seamlessly — conversation context is preserved when switching between quota pools.
-
-> **Note:** Claude models only work with Antigravity headers, so this dual-pool fallback only applies to Gemini models.
+> **Tip:** When Antigravity quota is exhausted for one account, the plugin tries the next account. You can also switch to non-prefixed Gemini models to use Gemini CLI quota instead.
 
 ### Quiet mode
 
@@ -561,6 +616,22 @@ Environment variables override config file values.
 
 ## Known plugin interactions
 
+### opencode-gemini-auth (Gemini CLI OAuth)
+
+**Compatibility:** This plugin (`opencode-antigravity-auth`) **fully covers** the Gemini CLI OAuth functionality provided by `opencode-gemini-auth`.
+
+If you install this plugin, you **do not need** to install `opencode-gemini-auth` separately. Our plugin provides:
+- All Gemini CLI OAuth features (authentication, token refresh)
+- Additional Antigravity API access (Claude, GPT models)
+- Dual quota pool support (both Antigravity and Gemini CLI quotas)
+
+| Plugin | Gemini CLI OAuth | Antigravity API | Claude/GPT |
+|--------|------------------|-----------------|------------|
+| `opencode-gemini-auth` | Yes | No | No |
+| `opencode-antigravity-auth` (this plugin) | Yes | Yes | Yes |
+
+> **Note:** If you have both plugins installed, remove `opencode-gemini-auth` to avoid conflicts.
+
 ### @tarquinen/opencode-dcp (Dynamic Context Pruning)
 
 **Issue:** DCP creates synthetic assistant messages to summarize pruned tool outputs. These synthetic messages lack the thinking block that Claude's API requires for thinking-enabled models.
@@ -570,19 +641,19 @@ Environment variables override config file values.
 Expected 'thinking' or 'redacted_thinking', but found 'text'
 ```
 
-**Solution:** Ensure DCP loads **before** this plugin. We inject `redacted_thinking` blocks into any assistant message that lacks one.
+**Solution:** Ensure this plugin loads **before** DCP. We inject `redacted_thinking` blocks into assistant messages, and DCP's processing runs after our fixes are applied.
 
 | Order | Result |
 |-------|--------|
-| DCP → antigravity | Works - we fix DCP's synthetic messages |
-| antigravity → DCP | Broken - DCP creates messages after our fix runs |
+| antigravity → DCP | Works - DCP processes messages after our fixes |
+| DCP → antigravity | Broken - DCP creates messages before our fix runs |
 
 **Correct:**
 ```json
 {
   "plugin": [
-    "@tarquinen/opencode-dcp@latest",
-    "opencode-antigravity-auth@latest"
+    "opencode-antigravity-auth@1.2.7",
+    "@tarquinen/opencode-dcp@latest"
   ]
 }
 ```
@@ -591,8 +662,8 @@ Expected 'thinking' or 'redacted_thinking', but found 'text'
 ```json
 {
   "plugin": [
-    "opencode-antigravity-auth@latest",
-    "@tarquinen/opencode-dcp@latest"
+    "@tarquinen/opencode-dcp@latest",
+    "opencode-antigravity-auth@1.2.7"
   ]
 }
 ```

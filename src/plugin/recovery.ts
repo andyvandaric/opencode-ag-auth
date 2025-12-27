@@ -398,28 +398,59 @@ export function createSessionRecoveryHook(
     if (!errorType) return false;
 
     const sessionID = info.sessionID;
-    const assistantMsgID = info.id;
+    if (!sessionID) return false;
 
-    if (!sessionID || !assistantMsgID) return false;
+    // OpenCode's session.error event may not include messageID
+    // In that case, we need to fetch messages and find the latest assistant with error
+    let assistantMsgID = info.id;
+    let msgs: MessageData[] | undefined;
+    const log = createLogger("session-recovery");
+
+    log.debug("Recovery attempt started", {
+      errorType,
+      sessionID,
+      providedMsgID: assistantMsgID ?? "none",
+    });
+
+    // Notify abort callback early
+    if (onAbortCallback) {
+      onAbortCallback(sessionID);
+    }
+
+    // Abort current request
+    await client.session.abort({ path: { id: sessionID } }).catch(() => {});
+
+    // Fetch messages - needed to find the failed message
+    const messagesResp = await client.session.messages({
+      path: { id: sessionID },
+      query: { directory },
+    });
+    msgs = (messagesResp as { data?: MessageData[] }).data;
+
+    // If messageID wasn't provided, find the latest assistant message with an error
+    if (!assistantMsgID && msgs && msgs.length > 0) {
+      // Find the last assistant message (most recent is typically last in array)
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        const m = msgs[i];
+        if (m && m.info?.role === "assistant" && m.info?.id) {
+          assistantMsgID = m.info.id;
+          log.debug("Found assistant message ID from session messages", {
+            msgID: assistantMsgID,
+            msgIndex: i,
+          });
+          break;
+        }
+      }
+    }
+
+    if (!assistantMsgID) {
+      log.debug("No assistant message ID found, cannot recover");
+      return false;
+    }
     if (processingErrors.has(assistantMsgID)) return false;
     processingErrors.add(assistantMsgID);
 
     try {
-      // Notify abort callback
-      if (onAbortCallback) {
-        onAbortCallback(sessionID);
-      }
-
-      // Abort current request
-      await client.session.abort({ path: { id: sessionID } }).catch(() => {});
-
-      // Fetch messages to find the failed one
-      const messagesResp = await client.session.messages({
-        path: { id: sessionID },
-        query: { directory },
-      });
-      const msgs = (messagesResp as { data?: MessageData[] }).data;
-
       const failedMsg = msgs?.find((m) => m.info?.id === assistantMsgID);
       if (!failedMsg) {
         return false;

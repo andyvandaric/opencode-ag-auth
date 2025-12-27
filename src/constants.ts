@@ -59,6 +59,13 @@ export const ANTIGRAVITY_LOAD_ENDPOINTS = [
 export const ANTIGRAVITY_ENDPOINT = ANTIGRAVITY_ENDPOINT_DAILY;
 
 /**
+ * Gemini CLI endpoint (production).
+ * Used for models without :antigravity suffix.
+ * Same as opencode-gemini-auth's GEMINI_CODE_ASSIST_ENDPOINT.
+ */
+export const GEMINI_CLI_ENDPOINT = ANTIGRAVITY_ENDPOINT_PROD;
+
+/**
  * Hardcoded project id used when Antigravity does not return one (e.g., business/workspace accounts).
  */
 export const ANTIGRAVITY_DEFAULT_PROJECT_ID = "rising-fact-p41fc";
@@ -126,4 +133,7 @@ If you are unsure about a tool's parameters, YOU MUST read the schema definition
  * {params} will be replaced with the actual parameter list.
  */
 export const CLAUDE_DESCRIPTION_PROMPT = "\n\n⚠️ STRICT PARAMETERS: {params}.";
+
+export const EMPTY_SCHEMA_PLACEHOLDER_NAME = "_placeholder";
+export const EMPTY_SCHEMA_PLACEHOLDER_DESCRIPTION = "Placeholder. Always pass true.";
 

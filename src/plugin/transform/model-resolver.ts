@@ -20,8 +20,10 @@ export const THINKING_TIER_BUDGETS = {
 
 /**
  * Gemini 3 uses thinkingLevel strings instead of numeric budgets.
+ * Flash supports: minimal, low, medium, high
+ * Pro supports: low, high
  */
-export const GEMINI_3_THINKING_LEVELS = ["low", "medium", "high"] as const;
+export const GEMINI_3_THINKING_LEVELS = ["minimal", "low", "medium", "high"] as const;
 
 /**
  * Model aliases - maps user-friendly names to API model names.
@@ -32,6 +34,15 @@ export const GEMINI_3_THINKING_LEVELS = ["low", "medium", "high"] as const;
  * - Claude non-thinking: claude-{model} (no -thinking suffix)
  */
 export const MODEL_ALIASES: Record<string, string> = {
+  // Gemini 3 variants - for Gemini CLI only (tier stripped, thinkingLevel used)
+  // For Antigravity, these are bypassed and full model name is kept
+  "gemini-3-pro-low": "gemini-3-pro",
+  "gemini-3-pro-high": "gemini-3-pro",
+  "gemini-3-flash-minimal": "gemini-3-flash",
+  "gemini-3-flash-low": "gemini-3-flash",
+  "gemini-3-flash-medium": "gemini-3-flash",
+  "gemini-3-flash-high": "gemini-3-flash",
+
   // Claude proxy names (gemini- prefix for compatibility)
   "gemini-claude-sonnet-4-5": "claude-sonnet-4-5",
   "gemini-claude-sonnet-4-5-thinking-low": "claude-sonnet-4-5-thinking",
@@ -52,12 +63,38 @@ export const MODEL_FALLBACKS: Record<string, string> = {
   "gemini-2.5-flash-image": "gemini-2.5-flash",
 };
 
-const TIER_REGEX = /-(low|medium|high)$/;
+const TIER_REGEX = /-(minimal|low|medium|high)$/;
+const QUOTA_PREFIX_REGEX = /^antigravity-/i;
+
+/**
+ * Models that only exist on Antigravity (not on Gemini CLI).
+ * These automatically route to Antigravity even without the prefix.
+ */
+const ANTIGRAVITY_ONLY_MODELS = /^(claude|gpt)/i;
+
+/**
+ * Models that support thinking tier suffixes.
+ * Only these models should have -low/-medium/-high stripped as thinking tiers.
+ * GPT models like gpt-oss-120b-medium should NOT have -medium stripped.
+ */
+function supportsThinkingTiers(model: string): boolean {
+  const lower = model.toLowerCase();
+  return (
+    lower.includes("gemini-3") ||
+    lower.includes("gemini-2.5") ||
+    (lower.includes("claude") && lower.includes("thinking"))
+  );
+}
 
 /**
  * Extracts thinking tier from model name suffix.
+ * Only extracts tier for models that support thinking tiers.
  */
 function extractThinkingTierFromModel(model: string): ThinkingTier | undefined {
+  // Only extract tier for models that support thinking tiers
+  if (!supportsThinkingTiers(model)) {
+    return undefined;
+  }
   const tierMatch = model.match(TIER_REGEX);
   return tierMatch?.[1] as ThinkingTier | undefined;
 }
@@ -91,50 +128,73 @@ function isThinkingCapableModel(model: string): boolean {
 }
 
 /**
- * Resolves a model name with optional tier suffix to its actual API model name
+ * Resolves a model name with optional tier suffix and quota prefix to its actual API model name
  * and corresponding thinking configuration.
  * 
+ * Quota routing:
+ * - "antigravity-" prefix → Antigravity quota
+ * - Claude/GPT models → Antigravity quota (auto, these only exist on Antigravity)
+ * - Other models → Gemini CLI quota (default)
+ * 
  * Examples:
- * - "gemini-3-pro-high" → { actualModel: "gemini-3-pro", thinkingLevel: "high" }
- * - "claude-sonnet-4-5-thinking-low" → { actualModel: "claude-sonnet-4-5-thinking", thinkingBudget: 8192 }
- * - "claude-sonnet-4-5" → { actualModel: "claude-sonnet-4-5" } (no thinking)
+ * - "gemini-2.5-flash" → { actualModel: "gemini-2.5-flash", quotaPreference: "gemini-cli" }
+ * - "antigravity-gemini-3-pro-high" → { actualModel: "gemini-3-pro", thinkingLevel: "high", quotaPreference: "antigravity" }
+ * - "claude-sonnet-4-5-thinking-medium" → { actualModel: "claude-sonnet-4-5-thinking", thinkingBudget: 16384, quotaPreference: "antigravity" }
  * 
  * @param requestedModel - The model name from the request
  * @returns Resolved model with thinking configuration
  */
 export function resolveModelWithTier(requestedModel: string): ResolvedModel {
-  const tier = extractThinkingTierFromModel(requestedModel);
-  const baseName = tier ? requestedModel.replace(TIER_REGEX, "") : requestedModel;
+  const isAntigravity = QUOTA_PREFIX_REGEX.test(requestedModel);
+  const modelWithoutQuota = requestedModel.replace(QUOTA_PREFIX_REGEX, "");
 
-  const isGemini3 = requestedModel.toLowerCase().includes("gemini-3");
+  const tier = extractThinkingTierFromModel(modelWithoutQuota);
+  const baseName = tier ? modelWithoutQuota.replace(TIER_REGEX, "") : modelWithoutQuota;
 
-  if (isGemini3 && tier) {
-    return {
-      actualModel: requestedModel,
-      thinkingLevel: tier,
-      tier,
-      isThinkingModel: true,
-    };
-  }
+  const isAntigravityOnly = ANTIGRAVITY_ONLY_MODELS.test(modelWithoutQuota);
+  const quotaPreference = isAntigravity || isAntigravityOnly ? "antigravity" : "gemini-cli";
 
-  const actualModel = MODEL_ALIASES[requestedModel] || MODEL_ALIASES[baseName] || baseName;
+  const isGemini3 = modelWithoutQuota.toLowerCase().startsWith("gemini-3");
+  const skipAlias = isAntigravity && isGemini3;
+
+  const actualModel = skipAlias
+    ? modelWithoutQuota
+    : MODEL_ALIASES[modelWithoutQuota] || MODEL_ALIASES[baseName] || baseName;
+
   const resolvedModel = MODEL_FALLBACKS[actualModel] || actualModel;
   const isThinking = isThinkingCapableModel(resolvedModel);
 
   if (!tier) {
-    return { actualModel: resolvedModel, isThinkingModel: isThinking };
+    if (resolvedModel === "gemini-3-flash" && !skipAlias) {
+      return {
+        actualModel: resolvedModel,
+        thinkingLevel: "minimal",
+        isThinkingModel: true,
+        quotaPreference,
+      };
+    }
+    return { actualModel: resolvedModel, isThinkingModel: isThinking, quotaPreference };
   }
 
-  if (resolvedModel.includes("gemini-3")) {
+  if (resolvedModel.includes("gemini-3") && !skipAlias) {
     return {
       actualModel: resolvedModel,
       thinkingLevel: tier,
       tier,
       isThinkingModel: true,
+      quotaPreference,
     };
   }
 
-  // Claude and Gemini 2.5 use numeric budgets
+  if (skipAlias) {
+    return {
+      actualModel: resolvedModel,
+      tier,
+      isThinkingModel: true,
+      quotaPreference,
+    };
+  }
+
   const budgetFamily = getBudgetFamily(resolvedModel);
   const budgets = THINKING_TIER_BUDGETS[budgetFamily];
   const thinkingBudget = budgets[tier];
@@ -144,6 +204,7 @@ export function resolveModelWithTier(requestedModel: string): ResolvedModel {
     thinkingBudget,
     tier,
     isThinkingModel: isThinking,
+    quotaPreference,
   };
 }
 

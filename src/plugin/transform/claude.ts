@@ -9,6 +9,10 @@
  */
 
 import type { RequestPayload, ThinkingConfig } from "./types";
+import {
+  EMPTY_SCHEMA_PLACEHOLDER_NAME,
+  EMPTY_SCHEMA_PLACEHOLDER_DESCRIPTION,
+} from "../../constants";
 
 /** Claude thinking models need a sufficiently large max output token limit when thinking is enabled */
 export const CLAUDE_THINKING_MAX_OUTPUT_TOKENS = 64_000;
@@ -158,26 +162,45 @@ export function normalizeClaudeTools(
       ...base,
       type: "object",
       properties: {
-        reason: {
-          type: "string",
-          description: "Brief explanation of why you are calling this tool",
+        [EMPTY_SCHEMA_PLACEHOLDER_NAME]: {
+          type: "boolean",
+          description: EMPTY_SCHEMA_PLACEHOLDER_DESCRIPTION,
         },
       },
-      required: ["reason"],
+      required: [EMPTY_SCHEMA_PLACEHOLDER_NAME],
     });
 
-    if (!schema || typeof schema !== "object") {
+    if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
       toolDebugMissing += 1;
       return createPlaceholderSchema();
     }
 
     const cleaned = cleanJSONSchema(schema);
 
-    if (
-      cleaned.type === "object" &&
-      (!cleaned.properties || Object.keys(cleaned.properties as Record<string, unknown>).length === 0)
-    ) {
-      return createPlaceholderSchema(cleaned);
+    if (!cleaned || typeof cleaned !== "object" || Array.isArray(cleaned)) {
+      toolDebugMissing += 1;
+      return createPlaceholderSchema();
+    }
+
+    // Claude VALIDATED mode requires tool parameters to be an object schema
+    // with at least one property.
+    const hasProperties =
+      cleaned.properties &&
+      typeof cleaned.properties === "object" &&
+      Object.keys(cleaned.properties as Record<string, unknown>).length > 0;
+
+    cleaned.type = "object";
+
+    if (!hasProperties) {
+      cleaned.properties = {
+        _placeholder: {
+          type: "boolean",
+          description: "Placeholder. Always pass true.",
+        },
+      };
+      cleaned.required = Array.isArray(cleaned.required)
+        ? Array.from(new Set([...(cleaned.required as string[]), "_placeholder"]))
+        : ["_placeholder"];
     }
 
     return cleaned;
@@ -189,15 +212,19 @@ export function normalizeClaudeTools(
     const pushDeclaration = (decl: Record<string, unknown> | undefined, source: string): void => {
       const schema =
         decl?.parameters ||
+        decl?.parametersJsonSchema ||
         decl?.input_schema ||
         decl?.inputSchema ||
         t.parameters ||
+        t.parametersJsonSchema ||
         t.input_schema ||
         t.inputSchema ||
         (t.function as Record<string, unknown> | undefined)?.parameters ||
+        (t.function as Record<string, unknown> | undefined)?.parametersJsonSchema ||
         (t.function as Record<string, unknown> | undefined)?.input_schema ||
         (t.function as Record<string, unknown> | undefined)?.inputSchema ||
         (t.custom as Record<string, unknown> | undefined)?.parameters ||
+        (t.custom as Record<string, unknown> | undefined)?.parametersJsonSchema ||
         (t.custom as Record<string, unknown> | undefined)?.input_schema;
 
       let name =

@@ -66,8 +66,9 @@ export function createLogger(module: string): Logger {
 
   const log = (level: LogLevel, message: string, extra?: Record<string, unknown>): void => {
     // Try TUI logging first
-    if (_client?.app?.log) {
-      _client.app
+    const app = _client?.app;
+    if (app && typeof app.log === "function") {
+      app
         .log({
           body: { service, level, message, extra },
         })
