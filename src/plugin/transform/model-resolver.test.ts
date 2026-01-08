@@ -5,7 +5,7 @@ describe("resolveModelWithTier", () => {
   describe("Gemini 3 flash models (Issue #109)", () => {
     it("antigravity-gemini-3-flash gets default thinkingLevel 'low'", () => {
       const result = resolveModelWithTier("antigravity-gemini-3-flash");
-      expect(result.actualModel).toBe("gemini-3-flash-low");
+      expect(result.actualModel).toBe("gemini-3-flash");
       expect(result.thinkingLevel).toBe("low");
       expect(result.quotaPreference).toBe("antigravity");
     });
@@ -50,7 +50,7 @@ describe("resolveModelWithTier", () => {
 
     it("antigravity-gemini-3-flash-medium gets thinkingLevel from tier", () => {
       const result = resolveModelWithTier("antigravity-gemini-3-flash-medium");
-      expect(result.actualModel).toBe("gemini-3-flash-medium");
+      expect(result.actualModel).toBe("gemini-3-flash");
       expect(result.thinkingLevel).toBe("medium");
     });
   });
@@ -111,10 +111,11 @@ describe("resolveModelWithVariant", () => {
       expect(result.configSource).toBe("variant");
     });
 
-    it("maps budget to thinkingLevel for Gemini 3 - medium", () => {
+    it("maps budget to thinkingLevel for Gemini 3 Flash - medium (no tier suffix)", () => {
       const result = resolveModelWithVariant("antigravity-gemini-3-flash", {
         thinkingBudget: 12000,
       });
+      expect(result.actualModel).toBe("gemini-3-flash");
       expect(result.thinkingLevel).toBe("medium");
       expect(result.configSource).toBe("variant");
     });

@@ -181,11 +181,20 @@ export function resolveModelWithTier(requestedModel: string): ResolvedModel {
   const isGemini3 = modelWithoutQuota.toLowerCase().startsWith("gemini-3");
   const skipAlias = isAntigravity && isGemini3;
 
-  // For Antigravity Gemini 3 models without explicit tier, append default tier (-high)
-  // Antigravity only has gemini-3-pro-high/low, not bare gemini-3-pro
-  const antigravityModel = skipAlias && !tier
-    ? `${modelWithoutQuota}-low`
-    : modelWithoutQuota;
+  // For Antigravity Gemini 3 Pro models without explicit tier, append default tier (-low)
+  // Antigravity API: gemini-3-pro requires tier suffix (gemini-3-pro-low/high)
+  //                  gemini-3-flash uses bare name + thinkingLevel param
+  const isGemini3Pro = modelWithoutQuota.toLowerCase().startsWith("gemini-3-pro");
+  const isGemini3Flash = modelWithoutQuota.toLowerCase().startsWith("gemini-3-flash");
+  
+  let antigravityModel = modelWithoutQuota;
+  if (skipAlias) {
+    if (isGemini3Pro && !tier) {
+      antigravityModel = `${modelWithoutQuota}-low`;
+    } else if (isGemini3Flash && tier) {
+      antigravityModel = baseName;
+    }
+  }
 
   const actualModel = skipAlias
     ? antigravityModel
@@ -300,11 +309,11 @@ export function resolveModelWithVariant(
 
   if (isGemini3) {
     const level = budgetToGemini3Level(budget);
-    const isAntigravityGemini3 = base.quotaPreference === "antigravity" &&
-      base.actualModel.toLowerCase().startsWith("gemini-3");
+    const isAntigravityGemini3Pro = base.quotaPreference === "antigravity" &&
+      base.actualModel.toLowerCase().startsWith("gemini-3-pro");
 
     let actualModel = base.actualModel;
-    if (isAntigravityGemini3) {
+    if (isAntigravityGemini3Pro) {
       const baseModel = base.actualModel.replace(/-(low|medium|high)$/, "");
       actualModel = `${baseModel}-${level}`;
     }
