@@ -2,6 +2,7 @@ import { formatRefreshParts, parseRefreshParts } from "./auth";
 import { loadAccounts, saveAccounts, type AccountStorageV3, type RateLimitStateV3, type ModelFamily, type HeaderStyle, type CooldownReason } from "./storage";
 import type { OAuthAuthDetails, RefreshParts } from "./types";
 import type { AccountSelectionStrategy } from "./config/schema";
+import { getHealthTracker, getTokenTracker, selectPriorityQueueAccount, type AccountWithMetrics, sortByLruWithHealth } from "./rotation";
 
 export type { ModelFamily, HeaderStyle, CooldownReason } from "./storage";
 export type { AccountSelectionStrategy } from "./config/schema";
@@ -283,15 +284,56 @@ export class AccountManager {
       return next;
     }
 
+    if (strategy === 'priority-queue') {
+      const healthTracker = getHealthTracker();
+      const tokenTracker = getTokenTracker();
+      
+      const accountsWithMetrics: AccountWithMetrics[] = this.accounts.map(acc => {
+        clearExpiredRateLimits(acc);
+        return {
+          index: acc.index,
+          lastUsed: acc.lastUsed,
+          healthScore: healthTracker.getScore(acc.index),
+          isRateLimited: isRateLimitedForFamily(acc, family, model),
+          isCoolingDown: this.isAccountCoolingDown(acc),
+        };
+      });
+
+      const selectedIndex = selectPriorityQueueAccount(accountsWithMetrics, tokenTracker);
+      if (selectedIndex !== null) {
+        const selected = this.accounts[selectedIndex];
+        if (selected) {
+          // Token consumption is deferred to request execution in plugin.ts
+          selected.lastUsed = nowMs();
+          this.markTouchedForQuota(selected, quotaKey);
+          this.currentAccountIndexByFamily[family] = selected.index;
+          return selected;
+        }
+      }
+    }
+
     if (strategy === 'hybrid') {
-      const freshAccounts = this.getFreshAccountsForQuota(quotaKey, family, model);
-      if (freshAccounts.length > 0) {
-        const fresh = freshAccounts[0];
-        if (fresh) {
-          fresh.lastUsed = nowMs();
-          this.markTouchedForQuota(fresh, quotaKey);
-          this.currentAccountIndexByFamily[family] = fresh.index;
-          return fresh;
+      const healthTracker = getHealthTracker();
+      const accountsWithMetrics: AccountWithMetrics[] = this.accounts.map(acc => {
+        clearExpiredRateLimits(acc);
+        return {
+          index: acc.index,
+          lastUsed: acc.lastUsed,
+          healthScore: healthTracker.getScore(acc.index),
+          isRateLimited: isRateLimitedForFamily(acc, family, model),
+          isCoolingDown: this.isAccountCoolingDown(acc),
+        };
+      });
+      
+      const sorted = sortByLruWithHealth(accountsWithMetrics);
+      if (sorted.length > 0 && sorted[0]) {
+        const selectedIndex = sorted[0].index;
+        const selected = this.accounts[selectedIndex];
+        if (selected) {
+          selected.lastUsed = nowMs();
+          this.markTouchedForQuota(selected, quotaKey);
+          this.currentAccountIndexByFamily[family] = selected.index;
+          return selected;
         }
       }
     }

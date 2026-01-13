@@ -17,8 +17,9 @@ import { z } from "zod";
  * - `sticky` (default): Use same account until rate-limited. Preserves prompt cache.
  * - `round-robin`: Rotate to next account on every request. Maximum throughput.
  * - `hybrid`: Touch all fresh accounts first to sync reset timers, then sticky.
+ * - `priority-queue`: Weighted random selection based on health score + token bucket + LRU.
  */
-export const AccountSelectionStrategySchema = z.enum(['sticky', 'round-robin', 'hybrid']);
+export const AccountSelectionStrategySchema = z.enum(['sticky', 'round-robin', 'hybrid', 'priority-queue']);
 export type AccountSelectionStrategy = z.infer<typeof AccountSelectionStrategySchema>;
 
 /**
@@ -238,7 +239,7 @@ export const AntigravityConfigSchema = z.object({
    * Env override: OPENCODE_ANTIGRAVITY_ACCOUNT_SELECTION_STRATEGY
    * @default "sticky"
    */
-  account_selection_strategy: AccountSelectionStrategySchema.default('sticky'),
+  account_selection_strategy: AccountSelectionStrategySchema.default('hybrid'),
   
   /**
    * Enable PID-based account offset for multi-session distribution.
@@ -261,6 +262,30 @@ export const AntigravityConfigSchema = z.object({
     * @default true
     */
    switch_on_first_rate_limit: z.boolean().default(true),
+   
+   // =========================================================================
+   // Health Score (for hybrid strategy)
+   // =========================================================================
+   
+   health_score: z.object({
+     initial: z.number().min(0).max(100).default(70),
+     success_reward: z.number().min(0).max(10).default(1),
+     rate_limit_penalty: z.number().min(-50).max(0).default(-10),
+     failure_penalty: z.number().min(-100).max(0).default(-20),
+     recovery_rate_per_hour: z.number().min(0).max(20).default(2),
+     min_usable: z.number().min(0).max(100).default(50),
+     max_score: z.number().min(50).max(100).default(100),
+   }).optional(),
+   
+   // =========================================================================
+   // Token Bucket (for priority-queue strategy)
+   // =========================================================================
+   
+   token_bucket: z.object({
+     max_tokens: z.number().min(1).max(1000).default(50),
+     regeneration_rate_per_minute: z.number().min(0.1).max(60).default(6),
+     initial_tokens: z.number().min(1).max(1000).default(50),
+   }).optional(),
    
    // =========================================================================
    // Auto-Update
@@ -295,7 +320,7 @@ export const DEFAULT_CONFIG: AntigravityConfig = {
   proactive_refresh_check_interval_seconds: 300,
   max_rate_limit_wait_seconds: 300,
   quota_fallback: false,
-  account_selection_strategy: 'sticky',
+  account_selection_strategy: 'hybrid',
 pid_offset_enabled: false,
    switch_on_first_rate_limit: true,
    auto_update: true,
@@ -304,5 +329,19 @@ pid_offset_enabled: false,
     memory_ttl_seconds: 3600,
     disk_ttl_seconds: 172800,
     write_interval_seconds: 60,
+  },
+  health_score: {
+    initial: 70,
+    success_reward: 1,
+    rate_limit_penalty: -10,
+    failure_penalty: -20,
+    recovery_rate_per_hour: 2,
+    min_usable: 50,
+    max_score: 100,
+  },
+  token_bucket: {
+    max_tokens: 50,
+    regeneration_rate_per_minute: 6,
+    initial_tokens: 50,
   },
 };

@@ -39,6 +39,7 @@ import { createSessionRecoveryHook, getRecoverySuccessToast } from "./plugin/rec
 import { initDiskSignatureCache } from "./plugin/cache";
 import { createProactiveRefreshQueue, type ProactiveRefreshQueue } from "./plugin/refresh-queue";
 import { initLogger, createLogger } from "./plugin/logger";
+import { initHealthTracker, getHealthTracker, initTokenTracker, getTokenTracker } from "./plugin/rotation";
 import type {
   GetAuth,
   LoaderResult,
@@ -662,6 +663,28 @@ export const createAntigravityPlugin = (providerId: string) => async (
   // Initialize structured logger for TUI integration
   initLogger(client);
   
+  // Initialize health tracker for hybrid strategy
+  if (config.health_score) {
+    initHealthTracker({
+      initial: config.health_score.initial,
+      successReward: config.health_score.success_reward,
+      rateLimitPenalty: config.health_score.rate_limit_penalty,
+      failurePenalty: config.health_score.failure_penalty,
+      recoveryRatePerHour: config.health_score.recovery_rate_per_hour,
+      minUsable: config.health_score.min_usable,
+      maxScore: config.health_score.max_score,
+    });
+  }
+
+  // Initialize token tracker for priority-queue strategy
+  if (config.token_bucket) {
+    initTokenTracker({
+      maxTokens: config.token_bucket.max_tokens,
+      regenerationRatePerMinute: config.token_bucket.regeneration_rate_per_minute,
+      initialTokens: config.token_bucket.initial_tokens,
+    });
+  }
+  
   // Initialize disk signature cache if keep_thinking is enabled
   // This integrates with the in-memory cacheSignature/getCachedSignature functions
   if (config.keep_thinking) {
@@ -962,6 +985,7 @@ export const createAntigravityPlugin = (providerId: string) => async (
                 const refreshed = await refreshAccessToken(authRecord, client, providerId);
                 if (!refreshed) {
                   const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(account.index);
+                  getHealthTracker().recordFailure(account.index);
                   lastError = new Error("Antigravity token refresh failed");
                   if (shouldCooldown) {
                     accountManager.markAccountCoolingDown(account, cooldownMs, "auth-failure");
@@ -1010,6 +1034,7 @@ export const createAntigravityPlugin = (providerId: string) => async (
                 }
 
                 const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(account.index);
+                getHealthTracker().recordFailure(account.index);
                 lastError = error instanceof Error ? error : new Error(String(error));
                 if (shouldCooldown) {
                   accountManager.markAccountCoolingDown(account, cooldownMs, "auth-failure");
@@ -1035,6 +1060,7 @@ export const createAntigravityPlugin = (providerId: string) => async (
               resetAccountFailureState(account.index);
             } catch (error) {
               const { failures, shouldCooldown, cooldownMs } = trackAccountFailure(account.index);
+              getHealthTracker().recordFailure(account.index);
               lastError = error instanceof Error ? error : new Error(String(error));
               if (shouldCooldown) {
                 accountManager.markAccountCoolingDown(account, cooldownMs, "project-error");
@@ -1197,6 +1223,12 @@ export const createAntigravityPlugin = (providerId: string) => async (
 
                 await runThinkingWarmup(prepared, projectContext.effectiveProjectId);
 
+                // Consume token for priority-queue strategy
+                // Refunded later if request fails (429 or network error)
+                if (config.account_selection_strategy === 'priority-queue') {
+                  getTokenTracker().consume(account.index);
+                }
+
                 const response = await fetch(prepared.request, prepared.init);
                 pushDebug(`status=${response.status} ${response.statusText}`);
 
@@ -1205,6 +1237,11 @@ export const createAntigravityPlugin = (providerId: string) => async (
 
                 // Handle 429 rate limit with improved logic
                 if (response.status === 429) {
+                  // Refund token on rate limit
+                  if (config.account_selection_strategy === 'priority-queue') {
+                    getTokenTracker().refund(account.index);
+                  }
+
                   const headerRetryMs = retryAfterMsFromResponse(response);
                   const bodyInfo = await extractRetryInfoFromBody(response);
                   const serverRetryMs = bodyInfo.retryDelayMs ?? headerRetryMs;
@@ -1239,6 +1276,8 @@ export const createAntigravityPlugin = (providerId: string) => async (
                   );
 
                   await logResponseBody(debugContext, response, 429);
+
+                  getHealthTracker().recordRateLimit(account.index);
 
                   if (isCapacityExhausted) {
                     const failures = account.consecutiveFailures ?? 0;
@@ -1395,6 +1434,7 @@ export const createAntigravityPlugin = (providerId: string) => async (
                 // Success or non-retryable error - return the response
                 if (response.ok) {
                   account.consecutiveFailures = 0;
+                  getHealthTracker().recordSuccess(account.index);
                 }
                 logAntigravityDebugResponse(debugContext, response, {
                   note: response.ok ? "Success" : `Error ${response.status}`,
@@ -1494,6 +1534,11 @@ export const createAntigravityPlugin = (providerId: string) => async (
 
                 return transformedResponse;
               } catch (error) {
+                // Refund token on network/API error
+                if (config.account_selection_strategy === 'priority-queue') {
+                  getTokenTracker().refund(account.index);
+                }
+
                 // Handle recoverable thinking errors - retry with forced recovery
                 if (error instanceof Error && error.message === "THINKING_RECOVERY_NEEDED") {
                   // Only retry once with forced recovery to avoid infinite loops
