@@ -1362,6 +1362,17 @@ function transformGeminiCandidate(candidate: any): any {
       thinkingTexts.push(part.text || "");
       const transformed: Record<string, unknown> = { ...part, type: "reasoning" };
       if (part.cache_control) transformed.cache_control = part.cache_control;
+
+      // Convert signature to providerMetadata format for OpenCode
+      const sig = part.signature || part.thoughtSignature;
+      if (sig) {
+        transformed.providerMetadata = {
+          anthropic: { signature: sig }
+        };
+        delete (transformed as any).signature;
+        delete (transformed as any).thoughtSignature;
+      }
+
       return transformed;
     }
 
@@ -1376,6 +1387,17 @@ function transformGeminiCandidate(candidate: any): any {
         thought: true,
       };
       if (part.cache_control) transformed.cache_control = part.cache_control;
+
+      // Convert signature to providerMetadata format for OpenCode
+      const sig = part.signature || part.thoughtSignature;
+      if (sig) {
+        transformed.providerMetadata = {
+          anthropic: { signature: sig }
+        };
+        delete (transformed as any).signature;
+        delete (transformed as any).thoughtSignature;
+      }
+
       return transformed;
     }
 
