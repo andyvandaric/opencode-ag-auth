@@ -53,7 +53,7 @@ jobs:
             const hasTriageLabel = labels.some(l => triageLabels.includes(l)) || areaLabels.length > 0;
             const isRetriage = context.payload.comment?.body?.includes('/triage');
             
-            if (hasTriageLabel && !isRetriage) {
+            if (hasTriageLabel && !labels.includes('needs-triage') && !isRetriage) {
               core.info(`Issue already triaged: ${labels.join(', ')}. Skipping.`);
               core.setOutput('skip', 'true');
             } else {
@@ -142,8 +142,8 @@ jobs:
               return;
             }
             
-            const labelsToAdd = [];
-            const labelsToRemove = ['needs-triage'];
+            let labelsToAdd = [];
+            let labelsToRemove = ['needs-triage'];
             
             // Remove existing triage labels to prevent conflicts
             validTypeLabels.forEach(label => labelsToRemove.push(label));
@@ -181,6 +181,9 @@ jobs:
               labelsToAdd.push(areaLabel);
             }
             labelsToAdd.push(...otherLabels);
+            
+            // Avoid removing labels that are being added
+            labelsToRemove = labelsToRemove.filter(label => !labelsToAdd.includes(label));
             
             const issueNumber = parseInt(process.env.ISSUE_NUMBER);
             
