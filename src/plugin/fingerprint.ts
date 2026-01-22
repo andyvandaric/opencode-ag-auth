@@ -51,6 +51,7 @@ export interface ClientMetadata {
   pluginType: string;
   osVersion: string;
   arch: string;
+  sqmId?: string;
 }
 
 export interface Fingerprint {
@@ -126,6 +127,7 @@ export function generateFingerprint(): Fingerprint {
       pluginType: "GEMINI",
       osVersion: osVersion,
       arch: arch,
+      sqmId: `{${crypto.randomUUID().toUpperCase()}}`,
     },
     quotaUser: `device-${crypto.randomBytes(8).toString("hex")}`,
     createdAt: Date.now(),
@@ -161,6 +163,7 @@ export function collectCurrentFingerprint(): Fingerprint {
       pluginType: "GEMINI",
       osVersion: osRelease,
       arch: arch,
+      sqmId: `{${crypto.randomUUID().toUpperCase()}}`, // Session-specific for current device
     },
     quotaUser: `device-${crypto.createHash("sha256").update(os.hostname()).digest("hex").slice(0, 16)}`,
     createdAt: Date.now(),

@@ -22,10 +22,20 @@ export interface RateLimitBackoffResult {
 
 const QUOTA_EXHAUSTED_BACKOFFS = [60_000, 300_000, 1_800_000, 7_200_000] as const;
 const RATE_LIMIT_EXCEEDED_BACKOFF = 30_000;
-const MODEL_CAPACITY_EXHAUSTED_BACKOFF = 15_000;
+// Increased from 15s to 45s base + jitter to reduce retry pressure on capacity errors
+const MODEL_CAPACITY_EXHAUSTED_BASE_BACKOFF = 45_000;
+const MODEL_CAPACITY_EXHAUSTED_JITTER_MAX = 30_000; // ±15s jitter range
 const SERVER_ERROR_BACKOFF = 20_000;
 const UNKNOWN_BACKOFF = 60_000;
 const MIN_BACKOFF_MS = 2_000;
+
+/**
+ * Generate a random jitter value for backoff timing.
+ * Helps prevent thundering herd problem when multiple clients retry simultaneously.
+ */
+function generateJitter(maxJitterMs: number): number {
+  return Math.random() * maxJitterMs - (maxJitterMs / 2);
+}
 
 export function parseRateLimitReason(
   reason: string | undefined, 
@@ -96,7 +106,8 @@ export function calculateBackoffMs(
     case "RATE_LIMIT_EXCEEDED":
       return RATE_LIMIT_EXCEEDED_BACKOFF; // 30s
     case "MODEL_CAPACITY_EXHAUSTED":
-      return MODEL_CAPACITY_EXHAUSTED_BACKOFF; // 15s
+      // Apply jitter to prevent thundering herd on capacity errors
+      return MODEL_CAPACITY_EXHAUSTED_BASE_BACKOFF + generateJitter(MODEL_CAPACITY_EXHAUSTED_JITTER_MAX);
     case "SERVER_ERROR":
       return SERVER_ERROR_BACKOFF; // 20s
     case "UNKNOWN":

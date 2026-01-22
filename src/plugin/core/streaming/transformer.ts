@@ -299,6 +299,7 @@ export function createStreamingTransformer(
   const thoughtBuffer = createThoughtBuffer();
   const sentThinkingBuffer = createThoughtBuffer();
   const debugState = { injected: false };
+  let hasSeenUsageMetadata = false;
 
   return new TransformStream({
     transform(chunk, controller) {
@@ -308,6 +309,11 @@ export function createStreamingTransformer(
       buffer = lines.pop() || '';
 
       for (const line of lines) {
+        // Quick check for usage metadata presence in the raw line
+        if (line.includes('usageMetadata')) {
+          hasSeenUsageMetadata = true;
+        }
+
         const transformedLine = transformSseLine(
           line,
           signatureStore,
@@ -324,6 +330,9 @@ export function createStreamingTransformer(
       buffer += decoder.decode();
 
       if (buffer) {
+        if (buffer.includes('usageMetadata')) {
+          hasSeenUsageMetadata = true;
+        }
         const transformedLine = transformSseLine(
           buffer,
           signatureStore,
@@ -334,6 +343,18 @@ export function createStreamingTransformer(
           debugState,
         );
         controller.enqueue(encoder.encode(transformedLine));
+      }
+
+      // Inject synthetic usage metadata if missing (fixes "Context % used: 0%" issue)
+      if (!hasSeenUsageMetadata) {
+        const syntheticUsage = {
+          usageMetadata: {
+            promptTokenCount: 0,
+            candidatesTokenCount: 0,
+            totalTokenCount: 0,
+          }
+        };
+        controller.enqueue(encoder.encode(`\ndata: ${JSON.stringify(syntheticUsage)}\n\n`));
       }
     },
   });
