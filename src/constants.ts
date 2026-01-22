@@ -146,6 +146,48 @@ export const SKIP_THOUGHT_SIGNATURE = "skip_thought_signature_validator";
  * This is injected into requests to match CLIProxyAPI v6.6.89 behavior.
  * The instruction provides identity and guidelines for the Antigravity agent.
  */
+// ============================================================================
+// GOOGLE SEARCH TOOL CONSTANTS
+// ============================================================================
+
+/**
+ * Model used for Google Search grounding requests.
+ * Uses gemini-3-flash for fast, cost-effective search operations.
+ */
+export const SEARCH_MODEL = "gemini-3-flash";
+
+/**
+ * Thinking budget for deep search (more thorough analysis).
+ */
+export const SEARCH_THINKING_BUDGET_DEEP = 16384;
+
+/**
+ * Thinking budget for fast search (quick results).
+ */
+export const SEARCH_THINKING_BUDGET_FAST = 4096;
+
+/**
+ * Timeout for search requests in milliseconds (60 seconds).
+ */
+export const SEARCH_TIMEOUT_MS = 60000;
+
+/**
+ * System instruction for the Google Search tool.
+ */
+export const SEARCH_SYSTEM_INSTRUCTION = `You are an expert web search assistant with access to Google Search and URL analysis tools.
+
+Your capabilities:
+- Use google_search to find real-time information from the web
+- Use url_context to fetch and analyze content from specific URLs when provided
+
+Guidelines:
+- Always provide accurate, well-sourced information
+- Cite your sources when presenting facts
+- If analyzing URLs, extract the most relevant information
+- Be concise but comprehensive in your responses
+- If information is uncertain or conflicting, acknowledge it
+- Focus on answering the user's question directly`;
+
 export const ANTIGRAVITY_SYSTEM_INSTRUCTION = `You are Antigravity, a powerful agentic AI coding assistant designed by the Google DeepMind team working on Advanced Agentic Coding.
 You are pair programming with a USER to solve their coding task. The task may require creating a new codebase, modifying or debugging an existing codebase, or simply answering a question.
 **Absolute paths only**

@@ -351,27 +351,6 @@ export const AntigravityConfigSchema = z.object({
    */
   auto_update: z.boolean().default(true),
 
-  // =========================================================================
-  // Web Search (Gemini Grounding)
-  // =========================================================================
-
-  web_search: z.object({
-    /**
-     * Default mode for web search when not specified by variant.
-     * - `auto`: Model decides when to search (dynamic retrieval).
-     * - `off`: Search is disabled by default.
-     * @default "off"
-     */
-    default_mode: z.enum(['auto', 'off']).default('off'),
-
-    /**
-     * Dynamic retrieval threshold (0.0 to 1.0).
-     * Higher values make the model search LESS often (requires higher confidence to trigger search).
-     * Only applies in 'auto' mode.
-     * @default 0.3
-     */
-    grounding_threshold: z.number().min(0).max(1).default(0.3),
-  }).optional(),
 });
 
 export type AntigravityConfig = z.infer<typeof AntigravityConfigSchema>;
@@ -424,9 +403,5 @@ export const DEFAULT_CONFIG: AntigravityConfig = {
     max_tokens: 50,
     regeneration_rate_per_minute: 6,
     initial_tokens: 50,
-  },
-  web_search: {
-    default_mode: 'off',
-    grounding_threshold: 0.3,
   },
 };

@@ -1,4 +1,5 @@
 import { exec } from "node:child_process";
+import { tool } from "@opencode-ai/plugin";
 import { ANTIGRAVITY_ENDPOINT_FALLBACKS, ANTIGRAVITY_PROVIDER_ID, type HeaderStyle } from "./constants";
 import { authorizeAntigravity, exchangeAntigravity } from "./antigravity/oauth";
 import type { AntigravityTokenExchangeResult } from "./antigravity/oauth";
@@ -40,6 +41,7 @@ import { initDiskSignatureCache } from "./plugin/cache";
 import { createProactiveRefreshQueue, type ProactiveRefreshQueue } from "./plugin/refresh-queue";
 import { initLogger, createLogger } from "./plugin/logger";
 import { initHealthTracker, getHealthTracker, initTokenTracker, getTokenTracker } from "./plugin/rotation";
+import { executeSearch } from "./plugin/search";
 import type {
   GetAuth,
   LoaderResult,
@@ -689,6 +691,9 @@ export const createAntigravityPlugin = (providerId: string) => async (
   // Load configuration from files and environment variables
   const config = loadConfig(directory);
   initRuntimeConfig(config);
+
+  // Cached getAuth function for tool access
+  let cachedGetAuth: GetAuth | null = null;
   
   // Initialize debug with config
   initializeDebug(config);
@@ -779,11 +784,66 @@ export const createAntigravityPlugin = (providerId: string) => async (
     }
   };
 
+  // Create google_search tool with access to auth context
+  const googleSearchTool = tool({
+    description: "Search the web using Google Search and analyze URLs. Returns real-time information from the internet with source citations. Use this when you need up-to-date information about current events, recent developments, or any topic that may have changed. You can also provide specific URLs to analyze. IMPORTANT: If the user mentions or provides any URLs in their query, you MUST extract those URLs and pass them in the 'urls' parameter for direct analysis.",
+    args: {
+      query: tool.schema.string().describe("The search query or question to answer using web search"),
+      urls: tool.schema.array(tool.schema.string()).optional().describe("List of specific URLs to fetch and analyze. IMPORTANT: Always extract and include any URLs mentioned by the user in their query here."),
+      thinking: tool.schema.boolean().optional().default(true).describe("Enable deep thinking for more thorough analysis (default: true)"),
+    },
+    async execute(args, ctx) {
+      log.debug("Google Search tool called", { query: args.query, urlCount: args.urls?.length ?? 0 });
+
+      // Get current auth context
+      const auth = cachedGetAuth ? await cachedGetAuth() : null;
+      if (!auth || !isOAuthAuth(auth)) {
+        return "Error: Not authenticated with Antigravity. Please run `opencode auth login` to authenticate.";
+      }
+
+      // Get access token and project ID
+      const parts = parseRefreshParts(auth.refresh);
+      const projectId = parts.managedProjectId || parts.projectId || "unknown";
+
+      // Ensure we have a valid access token
+      let accessToken = auth.access;
+      if (!accessToken || accessTokenExpired(auth)) {
+        try {
+          const refreshed = await refreshAccessToken(auth, client, providerId);
+          accessToken = refreshed?.access;
+        } catch (error) {
+          return `Error: Failed to refresh access token: ${error instanceof Error ? error.message : String(error)}`;
+        }
+      }
+
+      if (!accessToken) {
+        return "Error: No valid access token available. Please run `opencode auth login` to re-authenticate.";
+      }
+
+      return executeSearch(
+        {
+          query: args.query,
+          urls: args.urls,
+          thinking: args.thinking,
+        },
+        accessToken,
+        projectId,
+        ctx.abort,
+      );
+    },
+  });
+
   return {
     event: eventHandler,
+    tool: {
+      google_search: googleSearchTool,
+    },
     auth: {
     provider: providerId,
     loader: async (getAuth: GetAuth, provider: Provider): Promise<LoaderResult | Record<string, unknown>> => {
+      // Cache getAuth for tool access
+      cachedGetAuth = getAuth;
+
       const auth = await getAuth();
       
       // If OpenCode has no valid OAuth auth, clear any stale account storage
@@ -1242,10 +1302,6 @@ export const createAntigravityPlugin = (providerId: string) => async (
                   forceThinkingRecovery,
                   {
                     claudeToolHardening: config.claude_tool_hardening,
-                    googleSearch: config.web_search ? {
-                      mode: config.web_search.default_mode,
-                      threshold: config.web_search.grounding_threshold
-                    } : undefined,
                     fingerprint: account.fingerprint,
                   },
                 );

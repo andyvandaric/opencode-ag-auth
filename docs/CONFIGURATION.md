@@ -24,12 +24,7 @@ Most settings have sensible defaults. Only configure what you need.
 
 **With web search enabled:**
 
-```json
-{
-  "$schema": "https://raw.githubusercontent.com/NoeFabris/opencode-antigravity-auth/main/assets/antigravity.schema.json",
-  "web_search": { "default_mode": "auto" }
-}
-```
+The plugin provides a `google_search` tool that the model can call to search the web. No configuration is needed - the tool is always available.
 
 ---
 
@@ -43,8 +38,8 @@ Settings that affect how the model thinks and responds.
 | `session_recovery` | `true` | Auto-recover from tool_result_missing errors |
 | `auto_resume` | `false` | Auto-send resume prompt after recovery |
 | `resume_text` | `"continue"` | Text to send when auto-resuming |
-| `web_search.default_mode` | `"off"` | Gemini Google Search grounding: `"auto"` or `"off"` |
-| `web_search.grounding_threshold` | `0.3` | How often to search (0=always, 1=never). Only in `auto` mode. |
+
+> **Note:** The `web_search` config options are deprecated. Google Search is now implemented as a dedicated `google_search` tool that the model can call explicitly.
 
 ### About `keep_thinking`
 
@@ -123,28 +118,24 @@ Copy-paste ready configs with all recommended settings enabled.
 ```json
 {
   "$schema": "https://raw.githubusercontent.com/NoeFabris/opencode-antigravity-auth/main/assets/antigravity.schema.json",
-  "account_selection_strategy": "sticky",
-  "web_search": { "default_mode": "auto" }
+  "account_selection_strategy": "sticky"
 }
 ```
 
 **Why these settings:**
 - `sticky` — No rotation needed, preserves Anthropic prompt cache
-- `web_search: auto` — Gemini can search when needed
 
 ### 2-3 Accounts
 
 ```json
 {
   "$schema": "https://raw.githubusercontent.com/NoeFabris/opencode-antigravity-auth/main/assets/antigravity.schema.json",
-  "account_selection_strategy": "hybrid",
-  "web_search": { "default_mode": "auto" }
+  "account_selection_strategy": "hybrid"
 }
 ```
 
 **Why these settings:**
 - `hybrid` — Smart rotation using health scores, avoids bad accounts
-- `web_search: auto` — Gemini can search when needed
 
 ### 3+ Accounts (Power Users / Parallel Agents)
 
@@ -153,8 +144,7 @@ Copy-paste ready configs with all recommended settings enabled.
   "$schema": "https://raw.githubusercontent.com/NoeFabris/opencode-antigravity-auth/main/assets/antigravity.schema.json",
   "account_selection_strategy": "round-robin",
   "switch_on_first_rate_limit": true,
-  "pid_offset_enabled": true,
-  "web_search": { "default_mode": "auto" }
+  "pid_offset_enabled": true
 }
 ```
 
@@ -162,7 +152,6 @@ Copy-paste ready configs with all recommended settings enabled.
 - `round-robin` — Maximum throughput, rotates every request
 - `switch_on_first_rate_limit` — Immediately switch on 429 (default: true)
 - `pid_offset_enabled` — Different sessions use different starting accounts
-- `web_search: auto` — Gemini can search when needed
 
 ---
 
