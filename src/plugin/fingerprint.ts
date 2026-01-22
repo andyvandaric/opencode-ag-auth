@@ -63,6 +63,19 @@ export interface Fingerprint {
   createdAt: number;
 }
 
+/**
+ * Fingerprint version for history tracking.
+ * Stores a snapshot of a fingerprint with metadata about when/why it was saved.
+ */
+export interface FingerprintVersion {
+  fingerprint: Fingerprint;
+  timestamp: number;
+  reason: 'initial' | 'regenerated' | 'restored';
+}
+
+/** Maximum number of fingerprint versions to keep per account */
+export const MAX_FINGERPRINT_HISTORY = 5;
+
 export interface FingerprintHeaders {
   "User-Agent": string;
   "X-Goog-Api-Client": string;

@@ -126,6 +126,8 @@ export interface ManagedAccount {
   lastFailureTime?: number;
   /** Per-account device fingerprint for rate limit mitigation */
   fingerprint?: import("./fingerprint").Fingerprint;
+  /** History of previous fingerprints for this account */
+  fingerprintHistory?: import("./fingerprint").FingerprintVersion[];
 }
 
 function nowMs(): number {
