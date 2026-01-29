@@ -194,7 +194,7 @@ export function startAntigravityDebugRequest(meta: AntigravityDebugRequestMeta):
 
   const id = `ANTIGRAVITY-${++requestCounter}`;
   const method = meta.method ?? "GET";
-  logDebug(`[Antigravity Debug ${id}] ${method} ${meta.resolvedUrl}`);
+  logDebug(`[Antigravity Debug ${id}] pid=${process.pid} ${method} ${meta.resolvedUrl}`);
   if (meta.originalUrl && meta.originalUrl !== meta.resolvedUrl) {
     logDebug(`[Antigravity Debug ${id}] Original URL: ${meta.originalUrl}`);
   }

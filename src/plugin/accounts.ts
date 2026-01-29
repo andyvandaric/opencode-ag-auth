@@ -533,7 +533,11 @@ export class AccountManager {
     if (pidOffsetEnabled && !this.sessionOffsetApplied[family] && this.accounts.length > 1) {
       const pidOffset = process.pid % this.accounts.length;
       const baseIndex = this.currentAccountIndexByFamily[family] ?? 0;
-      this.currentAccountIndexByFamily[family] = (baseIndex + pidOffset) % this.accounts.length;
+      const newIndex = (baseIndex + pidOffset) % this.accounts.length;
+      
+      debugLogToFile(`[Account] Applying PID offset: pid=${process.pid} offset=${pidOffset} family=${family} index=${baseIndex}->${newIndex}`);
+      
+      this.currentAccountIndexByFamily[family] = newIndex;
       this.sessionOffsetApplied[family] = true;
     }
 
