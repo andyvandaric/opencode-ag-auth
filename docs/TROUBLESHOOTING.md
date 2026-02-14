@@ -84,6 +84,29 @@ The correct key is `plugin` (singular):
 
 **Not** `"plugins"` (will cause "Unrecognized key" error).
 
+
+---
+
+## CLI Paused / Waiting for Input
+
+After checking quotas (`opencode auth login` -> Check quotas), the CLI will pause with:
+> Press Enter to continue...
+
+This allows you to read the quota information before returning to the menu. Simply press Enter to proceed.
+
+## Connection Issues / Proxy
+
+If you see connection errors or timeouts:
+
+1. **Check Proxy Settings:**
+   Ensure `HTTPS_PROXY` or `HTTP_PROXY` environment variables are correctly set if you are behind a corporate proxy.
+   ```bash
+   export HTTPS_PROXY=http://proxy.example.com:8080
+   ```
+
+2. **Check Firewall:**
+   Ensure `generativelanguage.googleapis.com` and `cloudaicompanion.googleapis.com` are reachable.
+
 ---
 
 ## Gemini CLI Permission Error

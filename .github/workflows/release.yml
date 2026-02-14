@@ -19,12 +19,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org
-          always-auth: true
+          cache: "pnpm"
 
       - name: Determine release state
         id: determine
@@ -70,24 +75,24 @@ jobs:
 
       - name: Install dependencies
         if: steps.determine.outputs.changed == 'true' && steps.determine.outputs.tag_exists == 'false'
-        run: npm install
+        run: pnpm install
 
       - name: Run Tests
         if: steps.determine.outputs.changed == 'true' && steps.determine.outputs.tag_exists == 'false'
-        run: npm test
+        run: pnpm test
 
       - name: Update README and Tag
         if: steps.determine.outputs.changed == 'true' && steps.determine.outputs.tag_exists == 'false'
         id: update_readme
         run: |
           CURRENT_VERSION="${{ steps.determine.outputs.current_version }}"
-          
+
           git checkout main
           git pull origin main
-          
+
           # Update version in README.md (looking for pattern opencode-antigravity-auth@x.y.z)
           sed -i "s/opencode-antigravity-auth@[0-9]\+\.[0-9]\+\.[0-9]\+/opencode-antigravity-auth@$CURRENT_VERSION/g" README.md
-          
+
           if ! git diff --quiet README.md; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -98,14 +103,14 @@ jobs:
           else
             echo "README already up to date"
           fi
-          
+
           # Create and push tag on the current HEAD
           git tag "v$CURRENT_VERSION"
           git push origin "v$CURRENT_VERSION"
 
       - name: Build
         if: steps.determine.outputs.changed == 'true' && steps.determine.outputs.tag_exists == 'false'
-        run: npm run build
+        run: pnpm run build
 
       - name: Verify build artifacts
         if: steps.determine.outputs.changed == 'true' && steps.determine.outputs.tag_exists == 'false'
@@ -183,10 +188,9 @@ jobs:
           tag_name: v${{ steps.determine.outputs.current_version }}
           release_name: v${{ steps.determine.outputs.current_version }}
           body: ${{ steps.release_notes.outputs.body }}
-          generate_release_notes: false
 
       - name: Publish to npm
         if: steps.determine.outputs.changed == 'true' && steps.determine.outputs.tag_exists == 'false'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public --provenance
+        run: pnpm publish --access public --no-git-checks

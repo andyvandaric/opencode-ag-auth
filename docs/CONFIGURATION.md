@@ -187,6 +187,20 @@ OPENCODE_ANTIGRAVITY_ACCOUNT_SELECTION_STRATEGY=round-robin
 OPENCODE_ANTIGRAVITY_PID_OFFSET_ENABLED=1
 ```
 
+
+---
+
+## Proxy Support
+
+The plugin supports HTTP/HTTPS proxies via standard environment variables. It uses `undici`'s native proxy support.
+
+```bash
+HTTPS_PROXY=http://proxy.example.com:8080 opencode
+HTTP_PROXY=http://proxy.example.com:8080 opencode
+```
+
+**Note:** The proxy configuration is applied globally to all requests made by the plugin, including improved support for corporate networks.
+
 ---
 
 ## Advanced Settings

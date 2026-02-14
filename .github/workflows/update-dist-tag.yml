@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to tag (e.g., 1.2.5)'
+        description: "Version to tag (e.g., 1.2.5)"
         required: true
         type: string
       tag:
-        description: 'Dist tag to update (e.g., latest, beta)'
+        description: "Dist tag to update (e.g., latest, beta)"
         required: true
         type: choice
         options:
@@ -77,5 +77,5 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Users can now install with:" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "npm install opencode-antigravity-auth@${{ github.event.inputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "pnpm add opencode-antigravity-auth@${{ github.event.inputs.tag }}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY

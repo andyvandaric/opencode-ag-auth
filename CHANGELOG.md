@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.5.2] - 2026-02-14
+
+### Added
+
+- **Strict Soft Quota Locking** - Accounts exceeding the soft quota threshold (confgurable, default 70%) are now strictly locked until their specific quota reset time, ignoring cache TTL. This prevents "leaky" usage where expiring cache allowed over-quota accounts to be reused before they were actually replenished.
+- **Proxy Support** - Added support for `undici` ProxyAgent, allowing the plugin to work behind corporate proxies via standard environment variables.
+- **Oh-My-OpenCode Integration** - integrated session recovery features from `oh-my-opencode`:
+    - **Tool Crash Recovery**: Automatically fixes `tool_result_missing` errors when operations are cancelled.
+    - **Thinking Block Recovery**: Fixes corrupted or out-of-order thinking blocks.
+    - **Strip Illegal Thinking**: Automatically removes thinking blocks when switching to models that don't support them.
+- **Interactive Quota Pause** - The `check` command now pauses after displaying the quota table, giving users time to read the stats before the command exits or proceeds.
+
+### Changed
+
+- **Quota Threshold Buffer** - Default `soft_quota_threshold_percent` lowered from 90% to **70%** to provide a safer 30% buffer against accidental overage and bans.
+
+### Fixed
+
+- **Gemini 400 Bad Request** - Fixed an issue where the `x-goog-user-project` header caused 400 errors for users without the Cloud Code API enabled on their project. This header is now stripped from requests.
+
 ## [1.5.1] - 2026-02-11
 
 ### Changed

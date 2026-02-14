@@ -12,17 +12,23 @@ import { updateOpencodeConfig } from "./config/updater";
 export async function promptProjectId(): Promise<string> {
   const rl = createInterface({ input, output });
   try {
-    const answer = await rl.question("Project ID (leave blank to use your default project): ");
+    const answer = await rl.question(
+      "Project ID (leave blank to use your default project): ",
+    );
     return answer.trim();
   } finally {
     rl.close();
   }
 }
 
-export async function promptAddAnotherAccount(currentCount: number): Promise<boolean> {
+export async function promptAddAnotherAccount(
+  currentCount: number,
+): Promise<boolean> {
   const rl = createInterface({ input, output });
   try {
-    const answer = await rl.question(`Add another account? (${currentCount} added) (y/n): `);
+    const answer = await rl.question(
+      `Add another account? (${currentCount} added) (y/n): `,
+    );
     const normalized = answer.trim().toLowerCase();
     return normalized === "y" || normalized === "yes";
   } finally {
@@ -30,7 +36,25 @@ export async function promptAddAnotherAccount(currentCount: number): Promise<boo
   }
 }
 
-export type LoginMode = "add" | "fresh" | "manage" | "check" | "verify" | "verify-all" | "cancel";
+export async function pause(
+  message: string = "Press Enter to continue...",
+): Promise<void> {
+  const rl = createInterface({ input, output });
+  try {
+    await rl.question(message);
+  } finally {
+    rl.close();
+  }
+}
+
+export type LoginMode =
+  | "add"
+  | "fresh"
+  | "manage"
+  | "check"
+  | "verify"
+  | "verify-all"
+  | "cancel";
 
 export interface ExistingAccountInfo {
   email?: string;
@@ -52,7 +76,9 @@ export interface LoginMenuResult {
   deleteAll?: boolean;
 }
 
-async function promptLoginModeFallback(existingAccounts: ExistingAccountInfo[]): Promise<LoginMenuResult> {
+async function promptLoginModeFallback(
+  existingAccounts: ExistingAccountInfo[],
+): Promise<LoginMenuResult> {
   const rl = createInterface({ input, output });
   try {
     console.log(`\n${existingAccounts.length} account(s) saved:`);
@@ -63,7 +89,9 @@ async function promptLoginModeFallback(existingAccounts: ExistingAccountInfo[]):
     console.log("");
 
     while (true) {
-      const answer = await rl.question("(a)dd new, (f)resh start, (c)heck quotas, (v)erify account, (va) verify all? [a/f/c/v/va]: ");
+      const answer = await rl.question(
+        "(a)dd new, (f)resh start, (c)heck quotas, (v)erify account, (va) verify all? [a/f/c/v/va]: ",
+      );
       const normalized = answer.trim().toLowerCase();
 
       if (normalized === "a" || normalized === "add") {
@@ -78,7 +106,11 @@ async function promptLoginModeFallback(existingAccounts: ExistingAccountInfo[]):
       if (normalized === "v" || normalized === "verify") {
         return { mode: "verify" };
       }
-      if (normalized === "va" || normalized === "verify-all" || normalized === "all") {
+      if (
+        normalized === "va" ||
+        normalized === "verify-all" ||
+        normalized === "all"
+      ) {
         return { mode: "verify-all", verifyAll: true };
       }
 
@@ -89,12 +121,14 @@ async function promptLoginModeFallback(existingAccounts: ExistingAccountInfo[]):
   }
 }
 
-export async function promptLoginMode(existingAccounts: ExistingAccountInfo[]): Promise<LoginMenuResult> {
+export async function promptLoginMode(
+  existingAccounts: ExistingAccountInfo[],
+): Promise<LoginMenuResult> {
   if (!isTTY()) {
     return promptLoginModeFallback(existingAccounts);
   }
 
-  const accounts: AccountInfo[] = existingAccounts.map(acc => ({
+  const accounts: AccountInfo[] = existingAccounts.map((acc) => ({
     email: acc.email,
     index: acc.index,
     addedAt: acc.addedAt,

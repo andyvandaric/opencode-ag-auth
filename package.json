@@ -1,6 +1,6 @@
 {
     "name": "opencode-antigravity-auth",
-    "version": "1.5.1",
+    "version": "1.5.2",
     "description": "Google Antigravity IDE OAuth auth plugin for Opencode - access Gemini 3 Pro and Claude 4.5 using Google credentials",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
@@ -41,7 +41,7 @@
         "test:watch": "vitest",
         "test:ui": "vitest --ui",
         "test:coverage": "vitest run --coverage",
-        "prepublishOnly": "npm run build",
+        "prepublishOnly": "pnpm run build",
         "test:e2e:models": "npx tsx script/test-models.ts",
         "test:e2e:regression": "npx tsx script/test-regression.ts"
     },
@@ -58,9 +58,10 @@
         "zod-to-json-schema": "^3.25.1"
     },
     "dependencies": {
-        "@opencode-ai/plugin": "^0.15.30",
         "@openauthjs/openauth": "^0.4.3",
+        "@opencode-ai/plugin": "^0.15.30",
         "proper-lockfile": "^4.1.2",
+        "undici": "^7.22.0",
         "xdg-basedir": "^5.1.0",
         "zod": "^4.0.0"
     }

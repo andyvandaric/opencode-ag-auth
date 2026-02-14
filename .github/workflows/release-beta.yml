@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       force:
-        description: 'Force publish even if version unchanged'
+        description: "Force publish even if version unchanged"
         required: false
         default: false
         type: boolean
@@ -23,12 +23,17 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org
-          always-auth: true
+          cache: "pnpm"
 
       - name: Verify not on main branch
         run: |
@@ -45,15 +50,15 @@ jobs:
         id: determine
         run: |
           set -euo pipefail
-          
+
           # Get base version from package.json (strip any existing prerelease suffix)
           RAW_VERSION=$(node -p "require('./package.json').version")
           BASE_VERSION=$(echo "$RAW_VERSION" | sed 's/-.*$//')
           echo "base_version=$BASE_VERSION" >> "$GITHUB_OUTPUT"
-          
+
           # Fetch all tags
           git fetch --tags --force
-          
+
           # Find the highest beta number for this base version
           HIGHEST_BETA=-1
           for tag in $(git tag -l "v${BASE_VERSION}-beta.*"); do
@@ -63,7 +68,7 @@ jobs:
               HIGHEST_BETA=$BETA_NUM
             fi
           done
-          
+
           # Also check npm for published beta versions
           NPM_BETAS=$(npm view opencode-antigravity-auth versions --json 2>/dev/null | grep -oP "\"${BASE_VERSION}-beta\\.\\K[0-9]+" || echo "")
           for BETA_NUM in $NPM_BETAS; do
@@ -71,13 +76,13 @@ jobs:
               HIGHEST_BETA=$BETA_NUM
             fi
           done
-          
+
           # Increment to next beta
           NEXT_BETA=$((HIGHEST_BETA + 1))
           NEXT_VERSION="${BASE_VERSION}-beta.${NEXT_BETA}"
           echo "next_version=$NEXT_VERSION" >> "$GITHUB_OUTPUT"
           echo "next_beta=$NEXT_BETA" >> "$GITHUB_OUTPUT"
-          
+
           echo "Base version: $BASE_VERSION"
           echo "Highest existing beta: $HIGHEST_BETA"
           echo "Next beta version: $NEXT_VERSION"
@@ -86,7 +91,7 @@ jobs:
         id: update_version
         run: |
           NEXT_VERSION="${{ steps.determine.outputs.next_version }}"
-          
+
           # Update package.json with new beta version
           node -e "
             const fs = require('fs');
@@ -94,9 +99,9 @@ jobs:
             pkg.version = '$NEXT_VERSION';
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 4) + '\n');
           "
-          
+
           echo "Updated package.json to version $NEXT_VERSION"
-          
+
           # Commit the version bump
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -123,19 +128,19 @@ jobs:
 
       - name: Install dependencies
         if: steps.should_publish.outputs.should_publish == 'true'
-        run: npm install
+        run: pnpm install
 
       - name: Run type check
         if: steps.should_publish.outputs.should_publish == 'true'
-        run: npm run typecheck
+        run: pnpm run typecheck
 
       - name: Run tests
         if: steps.should_publish.outputs.should_publish == 'true'
-        run: npm test
+        run: pnpm test
 
       - name: Build
         if: steps.should_publish.outputs.should_publish == 'true'
-        run: npm run build
+        run: pnpm run build
 
       - name: Verify build artifacts
         if: steps.should_publish.outputs.should_publish == 'true'
@@ -161,7 +166,7 @@ jobs:
           set -euo pipefail
           NEXT_VERSION="${{ steps.determine.outputs.next_version }}"
           BASE_VERSION="${{ steps.determine.outputs.base_version }}"
-          
+
           # Get commits since last tag
           LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
           if [ -n "$LAST_TAG" ]; then
@@ -171,11 +176,11 @@ jobs:
             CHANGELOG=$(git log --no-merges --pretty=format:'- %s (%h)' -20 | grep -v "\[skip ci\]" || echo "")
             COMPARE_URL=""
           fi
-          
+
           if [ -z "$CHANGELOG" ]; then
             CHANGELOG="- Beta release ${NEXT_VERSION}"
           fi
-          
+
           BODY_FILE=$(mktemp)
           {
             echo "## Beta Release v${NEXT_VERSION}"
@@ -214,7 +219,7 @@ jobs:
             printf '%s\n' 'rm -rf ~/.cache/opencode/node_modules ~/.cache/opencode/bun.lock'
             printf '%s\n' '```'
           } >"$BODY_FILE"
-          
+
           {
             echo "body<<EOF"
             cat "$BODY_FILE"
@@ -229,15 +234,12 @@ jobs:
         with:
           tag_name: v${{ steps.determine.outputs.next_version }}
           release_name: v${{ steps.determine.outputs.next_version }} (Beta)
-          body: ${{ steps.release_notes.outputs.body }}
-          prerelease: true
-          draft: false
 
       - name: Publish to npm with beta tag
         if: steps.should_publish.outputs.should_publish == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public --tag beta --provenance
+        run: pnpm publish --access public --tag beta --no-git-checks
 
       - name: Summary
         if: steps.should_publish.outputs.should_publish == 'true'

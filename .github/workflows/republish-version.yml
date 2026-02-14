@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to republish (e.g., 1.2.5)'
+        description: "Version to republish (e.g., 1.2.5)"
         required: true
         type: string
       skip_unpublish:
-        description: 'Skip unpublish step (if version does not exist on npm)'
+        description: "Skip unpublish step (if version does not exist on npm)"
         required: false
         default: false
         type: boolean
@@ -26,12 +26,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org
-          always-auth: true
+          cache: "pnpm"
 
       - name: Verify version matches package.json
         run: |
@@ -93,16 +98,16 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Install dependencies
-        run: npm install
+        run: pnpm install
 
       - name: Run type check
-        run: npm run typecheck
+        run: pnpm run typecheck
 
       - name: Run tests
-        run: npm test
+        run: pnpm test
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
 
       - name: Verify build artifacts
         run: |
@@ -119,7 +124,7 @@ jobs:
           VERSION="${{ github.event.inputs.version }}"
 
           echo "Publishing version $VERSION to npm..."
-          npm publish --access public --provenance
+          pnpm publish --access public --no-git-checks
 
           echo "Successfully published version $VERSION"
           echo ""
@@ -203,7 +208,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Install:**" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "npm install opencode-antigravity-auth@${{ github.event.inputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "pnpm add opencode-antigravity-auth@${{ github.event.inputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "# or" >> $GITHUB_STEP_SUMMARY
-          echo "npm install opencode-antigravity-auth@latest" >> $GITHUB_STEP_SUMMARY
+          echo "pnpm add opencode-antigravity-auth@latest" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
