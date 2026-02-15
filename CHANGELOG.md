@@ -1,6 +1,16 @@
 # Changelog
 
 
+
+## [1.5.4] - 2026-02-15
+
+### Added
+
+- **Ui**: show rate-limited family detail with countdown in auth menu badges (d5f935e)
+
+
+---
+
 ## [1.5.3] - 2026-02-15
 
 ### Changed
