@@ -3,6 +3,18 @@
 
 
 
+## [1.5.6] - 2026-02-15
+
+### Fixed
+
+- **Chore**: remove `.flowcrate/flowcrate.db` from git tracking and add to gitignore to prevent sensitive local data leaks
+
+### CI/CD
+
+- **Release**: automated npm publishing pipeline via GitHub Actions
+
+---
+
 ## [1.5.5] - 2026-02-15
 
 ### Fixed
