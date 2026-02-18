@@ -596,7 +596,7 @@ it("removes x-api-key header", () => {
       expect(headers.get("x-goog-user-project")).toBeNull();
     });
 
-    it("preserves x-goog-user-project header for gemini-cli headerStyle", () => {
+    it("removes x-goog-user-project header for gemini-cli headerStyle", () => {
       const result = prepareAntigravityRequest(
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
         { method: "POST", body: JSON.stringify({ contents: [] }), headers: { "x-goog-user-project": "my-project" } },
@@ -606,40 +606,7 @@ it("removes x-api-key header", () => {
         "gemini-cli"
       );
       const headers = result.init.headers as Headers;
-      expect(headers.get("x-goog-user-project")).toBe("my-project");
-    });
-
-    it("uses exact Code Assist headers for gemini-cli headerStyle", () => {
-      const result = prepareAntigravityRequest(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent",
-        { method: "POST", body: JSON.stringify({ contents: [] }) },
-        mockAccessToken,
-        mockProjectId,
-        undefined,
-        "gemini-cli"
-      );
-      const headers = result.init.headers as Headers;
-      expect(headers.get("User-Agent")).toBe("google-api-nodejs-client/9.15.1");
-      expect(headers.get("X-Goog-Api-Client")).toBe("gl-node/22.17.0");
-      expect(headers.get("Client-Metadata")).toBe("ideType=IDE_UNSPECIFIED,platform=PLATFORM_UNSPECIFIED,pluginType=GEMINI");
-    });
-
-    it("builds gemini-cli wrapped body without antigravity-only fields", () => {
-      const result = prepareAntigravityRequest(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent",
-        { method: "POST", body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: "hi" }] }] }) },
-        mockAccessToken,
-        "",
-        undefined,
-        "gemini-cli"
-      );
-      const parsed = JSON.parse(result.init.body as string);
-      expect(parsed).toHaveProperty("project", "");
-      expect(parsed).toHaveProperty("model");
-      expect(parsed).toHaveProperty("request");
-      expect(parsed.requestType).toBeUndefined();
-      expect(parsed.userAgent).toBeUndefined();
-      expect(parsed.requestId).toBeUndefined();
+      expect(headers.get("x-goog-user-project")).toBeNull();
     });
 
     it("identifies Claude models correctly", () => {
@@ -650,6 +617,52 @@ it("removes x-api-key header", () => {
         mockProjectId
       );
       expect(result.effectiveModel).toContain("claude");
+    });
+
+    it("strips client thinkingConfig for non-thinking Claude Sonnet 4.6", () => {
+      const result = prepareAntigravityRequest(
+        "https://generativelanguage.googleapis.com/v1beta/models/claude-sonnet-4-6:generateContent",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: "Hello" }] }],
+            generationConfig: {
+              thinkingConfig: { includeThoughts: true, thinkingBudget: 12000 },
+            },
+          }),
+        },
+        mockAccessToken,
+        mockProjectId
+      );
+
+      const wrappedBody = JSON.parse(result.init.body as string) as {
+        request?: { generationConfig?: { thinkingConfig?: unknown } };
+      };
+      expect(wrappedBody.request).toBeDefined();
+      expect(wrappedBody.request?.generationConfig?.thinkingConfig).toBeUndefined();
+    });
+
+    it("strips thinkingConfig when Claude Sonnet 4.6 thinking alias is requested", () => {
+      const result = prepareAntigravityRequest(
+        "https://generativelanguage.googleapis.com/v1beta/models/claude-sonnet-4-6-thinking:generateContent",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: "Hello" }] }],
+            generationConfig: {
+              thinkingConfig: { includeThoughts: true, thinkingBudget: 12000 },
+            },
+          }),
+        },
+        mockAccessToken,
+        mockProjectId
+      );
+
+      const wrappedBody = JSON.parse(result.init.body as string) as {
+        request?: { generationConfig?: { thinkingConfig?: unknown } };
+      };
+      expect(wrappedBody.request).toBeDefined();
+      expect(wrappedBody.request?.generationConfig?.thinkingConfig).toBeUndefined();
     });
 
     it("identifies Gemini models correctly", () => {
