@@ -67,7 +67,7 @@ describe("resolveModelWithTier", () => {
     });
 
     it("keeps antigravity for Claude models when cli_first is true", () => {
-      const result = resolveModelWithTier("claude-sonnet-4-5-thinking", { cli_first: true });
+      const result = resolveModelWithTier("claude-sonnet-4-6-thinking", { cli_first: true });
       expect(result.quotaPreference).toBe("antigravity");
     });
 
@@ -106,9 +106,9 @@ describe("resolveModelWithTier", () => {
   });
 
   describe("Claude thinking models default budget", () => {
-    it("antigravity-claude-sonnet-4-5-thinking gets default max budget (32768)", () => {
-      const result = resolveModelWithTier("antigravity-claude-sonnet-4-5-thinking");
-      expect(result.actualModel).toBe("claude-sonnet-4-5-thinking");
+    it("antigravity-claude-sonnet-4-6-thinking gets default max budget (32768)", () => {
+      const result = resolveModelWithTier("antigravity-claude-sonnet-4-6-thinking");
+      expect(result.actualModel).toBe("claude-sonnet-4-6-thinking");
       expect(result.thinkingBudget).toBe(32768);
       expect(result.isThinkingModel).toBe(true);
       expect(result.quotaPreference).toBe("antigravity");
@@ -145,8 +145,8 @@ describe("resolveModelWithTier", () => {
 describe("resolveModelWithVariant", () => {
   describe("without variant config", () => {
     it("falls back to tier resolution for Claude thinking models", () => {
-      const result = resolveModelWithVariant("claude-sonnet-4-5-thinking-low");
-      expect(result.actualModel).toBe("claude-sonnet-4-5-thinking");
+      const result = resolveModelWithVariant("claude-sonnet-4-6-thinking-low");
+      expect(result.actualModel).toBe("claude-sonnet-4-6-thinking");
       expect(result.thinkingBudget).toBe(8192);
       expect(result.configSource).toBeUndefined();
     });
@@ -161,10 +161,10 @@ describe("resolveModelWithVariant", () => {
 
   describe("with variant config", () => {
     it("overrides tier budget for Claude models", () => {
-      const result = resolveModelWithVariant("antigravity-claude-sonnet-4-5-thinking", {
+      const result = resolveModelWithVariant("antigravity-claude-sonnet-4-6-thinking", {
         thinkingBudget: 24000,
       });
-      expect(result.actualModel).toBe("claude-sonnet-4-5-thinking");
+      expect(result.actualModel).toBe("claude-sonnet-4-6-thinking");
       expect(result.thinkingBudget).toBe(24000);
       expect(result.configSource).toBe("variant");
     });
@@ -219,7 +219,7 @@ describe("resolveModelWithVariant", () => {
     });
 
     it("variant config overrides tier suffix", () => {
-      const result = resolveModelWithVariant("claude-sonnet-4-5-thinking-low", {
+      const result = resolveModelWithVariant("claude-sonnet-4-6-thinking-low", {
         thinkingBudget: 50000,
       });
       expect(result.thinkingBudget).toBe(50000);
@@ -266,8 +266,8 @@ describe("Issue #103: resolveModelForHeaderStyle", () => {
     });
 
     it("keeps claude models unchanged (antigravity only)", () => {
-      const result = resolveModelForHeaderStyle("claude-sonnet-4-5-thinking", "antigravity");
-      expect(result.actualModel).toBe("claude-sonnet-4-5-thinking");
+      const result = resolveModelForHeaderStyle("claude-sonnet-4-6-thinking", "antigravity");
+      expect(result.actualModel).toBe("claude-sonnet-4-6-thinking");
     });
   });
 });

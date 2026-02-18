@@ -608,8 +608,8 @@ describe("transform/gemini", () => {
       expect(isImageGenerationModel("gemini-2.5-flash")).toBe(false);
     });
 
-    it("returns false for claude-sonnet-4-5", () => {
-      expect(isImageGenerationModel("claude-sonnet-4-5")).toBe(false);
+    it("returns false for claude-sonnet-4-6", () => {
+      expect(isImageGenerationModel("claude-sonnet-4-6")).toBe(false);
     });
   });
 

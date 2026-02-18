@@ -12,8 +12,8 @@ describe("cross-model-sanitizer", () => {
   describe("getModelFamily", () => {
     it("identifies Claude models", () => {
       expect(getModelFamily("claude-opus-4-5-thinking-medium")).toBe("claude");
-      expect(getModelFamily("claude-sonnet-4-5")).toBe("claude");
-      expect(getModelFamily("claude-sonnet-4-5-thinking-low")).toBe("claude");
+      expect(getModelFamily("claude-sonnet-4-6")).toBe("claude");
+      expect(getModelFamily("claude-sonnet-4-6-thinking-low")).toBe("claude");
     });
 
     it("identifies Gemini models", () => {
@@ -372,7 +372,7 @@ describe("cross-model-sanitizer", () => {
       };
 
       const result = sanitizeCrossModelPayload(payload, {
-        targetModel: "claude-sonnet-4-5-thinking-low",
+        targetModel: "claude-sonnet-4-6-thinking-low",
       });
 
       const fc = (result.payload as any).contents[0].parts[0].functionCall;

@@ -1,6 +1,16 @@
 # Changelog
 
 
+## [1.5.7] - 2026-02-18
+
+### Changed
+
+- **Models**: migrated all Claude Sonnet references from 4.5 to 4.6 across runtime model config, resolver aliases, request handling, tests, and docs.
+- **Thinking**: kept Sonnet thinking variants aligned with `claude-sonnet-4-6-thinking` and antigravity model keys used by OpenCode configs.
+
+---
+
+
 
 
 ## [1.5.6] - 2026-02-15

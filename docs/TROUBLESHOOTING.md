@@ -396,15 +396,15 @@ v1.2.8+ introduces **model variants** for dynamic thinking configuration.
 **Before (v1.2.7):**
 ```json
 {
-  "antigravity-claude-sonnet-4-5-thinking-low": { ... },
-  "antigravity-claude-sonnet-4-5-thinking-max": { ... }
+  "antigravity-claude-sonnet-4-6-thinking-low": { ... },
+  "antigravity-claude-sonnet-4-6-thinking-max": { ... }
 }
 ```
 
 **After (v1.2.8+):**
 ```json
 {
-  "antigravity-claude-sonnet-4-5-thinking": {
+  "antigravity-claude-sonnet-4-6-thinking": {
     "variants": {
       "low": { "thinkingConfig": { "thinkingBudget": 8192 } },
       "max": { "thinkingConfig": { "thinkingBudget": 32768 } }
@@ -422,7 +422,7 @@ v1.2.7+ uses explicit `antigravity-` prefix:
 | Old Name | New Name |
 |----------|----------|
 | `gemini-3-pro-low` | `antigravity-gemini-3-pro` |
-| `claude-sonnet-4-5` | `antigravity-claude-sonnet-4-5` |
+| `claude-sonnet-4-6` | `antigravity-claude-sonnet-4-6` |
 
 Old names work as fallback, but `antigravity-` prefix is recommended.
 

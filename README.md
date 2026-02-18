@@ -25,7 +25,7 @@ This is a specialized fork of `opencode-antigravity-auth` focused on **Safety** 
 
 ## Key Features
 
-- **All Antigravity Models**: Claude Opus 4.6, Sonnet 4.5, and Gemini 3 Pro/Flash via Google OAuth.
+- **All Antigravity Models**: Claude Opus 4.6, Sonnet 4.6, and Gemini 3 Pro/Flash via Google OAuth.
 - **Thinking Models**: Configurable thinking budgets for complex reasoning tasks.
 - **Multi-Account Rotation**: Add unlimited Google accounts; the plugin auto-rotates based on health and quota.
 - **Dual Quota Pools**: Intelligently routes between Antigravity and Gemini CLI quotas.
@@ -92,7 +92,7 @@ Install the opencode-ag-auth plugin and add the Antigravity model definitions to
 4. **Use it:**
 
    ```bash
-   opencode run "Hello" --model=google/antigravity-claude-sonnet-4-5-thinking --variant=max
+   opencode run "Hello" --model=google/antigravity-claude-sonnet-4-6-thinking --variant=max
    ```
 
 </details>
@@ -115,7 +115,7 @@ Install the opencode-ag-auth plugin and add the Antigravity model definitions to
 ### Verification
 
 ```bash
-opencode run "Hello" --model=google/antigravity-claude-sonnet-4-5-thinking --variant=max
+opencode run "Hello" --model=google/antigravity-claude-sonnet-4-6-thinking --variant=max
 ```
 
 </details>
@@ -135,8 +135,8 @@ For a complete installation guide, including manual methods and advanced agent p
 |-------|----------|-------|
 | `antigravity-gemini-3-pro` | low, high | Gemini 3 Pro with thinking |
 | `antigravity-gemini-3-flash` | minimal, low, medium, high | Gemini 3 Flash with thinking |
-| `antigravity-claude-sonnet-4-5` | — | Claude Sonnet 4.5 |
-| `antigravity-claude-sonnet-4-5-thinking` | low, max | Claude Sonnet with extended thinking |
+| `antigravity-claude-sonnet-4-6` | — | Claude Sonnet 4.6 |
+| `antigravity-claude-sonnet-4-6-thinking` | low, max | Claude Sonnet with extended thinking |
 
 | `antigravity-claude-opus-4-6-thinking` | low, max | Claude Opus 4.6 with extended thinking |
 
@@ -158,7 +158,7 @@ For a complete installation guide, including manual methods and advanced agent p
 
 **Using variants:**
 ```bash
-opencode run "Hello" --model=google/antigravity-claude-sonnet-4-5-thinking --variant=max
+opencode run "Hello" --model=google/antigravity-claude-sonnet-4-6-thinking --variant=max
 ```
 
 For details on variant configuration and thinking levels, see [docs/MODEL-VARIANTS.md](docs/MODEL-VARIANTS.md).
@@ -195,13 +195,13 @@ Add this to your `~/.config/opencode/opencode.json`:
             "high": { "thinkingLevel": "high" }
           }
         },
-        "antigravity-claude-sonnet-4-5": {
-          "name": "Claude Sonnet 4.5 (Antigravity)",
+        "antigravity-claude-sonnet-4-6": {
+          "name": "Claude Sonnet 4.6 (Antigravity)",
           "limit": { "context": 200000, "output": 64000 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
         },
-        "antigravity-claude-sonnet-4-5-thinking": {
-          "name": "Claude Sonnet 4.5 Thinking (Antigravity)",
+        "antigravity-claude-sonnet-4-6-thinking": {
+          "name": "Claude Sonnet 4.6 Thinking (Antigravity)",
           "limit": { "context": 200000, "output": 64000 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
           "variants": {

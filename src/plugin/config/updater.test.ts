@@ -70,7 +70,7 @@ describe("updateOpencodeConfig", () => {
       writtenConfig.provider.google.models["antigravity-gemini-3-pro"],
     ).toBeDefined();
     expect(
-      writtenConfig.provider.google.models["antigravity-claude-sonnet-4-5"],
+      writtenConfig.provider.google.models["antigravity-claude-sonnet-4-6"],
     ).toBeDefined();
   });
 

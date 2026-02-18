@@ -157,7 +157,7 @@ else
   else
     log_info "Session: $SID"
     log_info "Step 2: Google Claude Sonnet Thinking + tool..."
-    opencode run -s "$SID" -m google/antigravity-claude-sonnet-4-5-thinking-low \
+    opencode run -s "$SID" -m google/antigravity-claude-sonnet-4-6-thinking-low \
       "Run: echo 'Test5-Google-Claude'" \
       > /tmp/e2e-t5-s2.log 2>&1 || true
     
@@ -218,7 +218,7 @@ echo ""
 # Test 7: Google Claude → Anthropic Claude (same family, different API)
 echo "Test 7: Google Claude → Anthropic Claude (same family)"
 log_info "Step 1: Google Claude Sonnet Thinking..."
-opencode run -m google/antigravity-claude-sonnet-4-5-thinking-low \
+opencode run -m google/antigravity-claude-sonnet-4-6-thinking-low \
   "Run: echo 'Test7-Google-Claude'" \
   > /tmp/e2e-t7-s1.log 2>&1 || true
 

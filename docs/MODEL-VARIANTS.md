@@ -9,7 +9,7 @@ OpenCode's variant system allows you to configure thinking budget dynamically in
 When you define a model with `variants`, OpenCode shows variant options in the model picker. Selecting a variant passes the `providerOptions` to the plugin, which extracts the thinking configuration.
 
 ```bash
-opencode run "Hello" --model=google/antigravity-claude-sonnet-4-5-thinking --variant=max
+opencode run "Hello" --model=google/antigravity-claude-sonnet-4-6-thinking --variant=max
 ```
 
 ---
@@ -20,8 +20,8 @@ Define variants in your model configuration:
 
 ```json
 {
-  "antigravity-claude-sonnet-4-5-thinking": {
-    "name": "Claude Sonnet 4.5 Thinking",
+  "antigravity-claude-sonnet-4-6-thinking": {
+    "name": "Claude Sonnet 4.6 Thinking",
     "limit": { "context": 200000, "output": 64000 },
     "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
     "variants": {
@@ -108,8 +108,8 @@ Claude models use token-based thinking budgets:
 
 ```json
 {
-  "antigravity-claude-sonnet-4-5-thinking": {
-    "name": "Claude Sonnet 4.5 Thinking (Antigravity)",
+  "antigravity-claude-sonnet-4-6-thinking": {
+    "name": "Claude Sonnet 4.6 Thinking (Antigravity)",
     "limit": { "context": 200000, "output": 64000 },
     "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
     "variants": {
@@ -154,9 +154,9 @@ For Gemini 3 models, the old `thinkingBudget` format is still supported but depr
 
 Legacy model names still work:
 
-- `antigravity-claude-sonnet-4-5-thinking-low`
-- `antigravity-claude-sonnet-4-5-thinking-medium`
-- `antigravity-claude-sonnet-4-5-thinking-high`
+- `antigravity-claude-sonnet-4-6-thinking-low`
+- `antigravity-claude-sonnet-4-6-thinking-medium`
+- `antigravity-claude-sonnet-4-6-thinking-high`
 - `antigravity-gemini-3-pro-low`
 - `antigravity-gemini-3-pro-high`
 - `gemini-3-pro-low`

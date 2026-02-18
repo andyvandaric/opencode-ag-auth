@@ -110,7 +110,7 @@ describe("header style resolution", () => {
 
   it("keeps antigravity for Claude when cli_first is enabled", () => {
     const headerStyle = getHeaderStyleFromUrl?.(
-      "https://generativelanguage.googleapis.com/v1beta/models/claude-sonnet-4-5-thinking:streamGenerateContent",
+      "https://generativelanguage.googleapis.com/v1beta/models/claude-sonnet-4-6-thinking:streamGenerateContent",
       "claude",
       true,
     );

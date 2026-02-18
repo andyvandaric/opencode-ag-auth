@@ -339,7 +339,7 @@ describe("Cross-Model Session Integration", () => {
       };
 
       const result = sanitizeCrossModelPayload(payload, {
-        targetModel: "claude-sonnet-4-5-thinking-low",
+        targetModel: "claude-sonnet-4-6-thinking-low",
       });
 
       const sanitized = result.payload as typeof payload;
@@ -360,7 +360,7 @@ describe("Cross-Model Session Integration", () => {
 
     it("correctly identifies Claude models", () => {
       expect(getModelFamily("claude-opus-4-5-thinking-medium")).toBe("claude");
-      expect(getModelFamily("claude-sonnet-4-5")).toBe("claude");
+      expect(getModelFamily("claude-sonnet-4-6")).toBe("claude");
       expect(getModelFamily("claude-sonnet-4")).toBe("claude");
       expect(getModelFamily("claude-3-opus")).toBe("claude");
     });
