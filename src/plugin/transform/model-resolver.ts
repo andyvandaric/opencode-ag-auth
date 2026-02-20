@@ -78,6 +78,34 @@ export const MODEL_FALLBACKS: Record<string, string> = {
   // No fallbacks for image models - they must stay as image models
 };
 
+/**
+ * Gemini text models verified working in E2E.
+ * Non-image Gemini requests are normalized to this allowlist.
+ */
+const WORKING_GEMINI_TEXT_MODELS = new Set([
+  "gemini-3-flash-preview",
+  "gemini-3.1-pro-preview",
+  "gemini-2.5-pro",
+  "gemini-2.5-flash",
+  "gemini-3.1-pro-low",
+  "gemini-3.1-pro-high",
+  "gemini-3-flash",
+]);
+
+/**
+ * Legacy/alias Gemini text model redirects toward known working models.
+ */
+const LEGACY_GEMINI_TEXT_REDIRECTS: Record<string, string> = {
+  "gemini-pro": "gemini-2.5-pro",
+  "gemini-flash": "gemini-2.5-flash",
+  "gemini-3.1-pro": "gemini-3.1-pro-preview",
+  "gemini-3.1-pro-medium": "gemini-3.1-pro-low",
+  "gemini-3.1-pro-minimal": "gemini-3.1-pro-low",
+  "gemini-3.1-pro-preview-customtools": "gemini-3.1-pro-preview",
+  "gemini-2.5-pro-preview": "gemini-2.5-pro",
+  "gemini-2.5-flash-preview": "gemini-2.5-flash",
+};
+
 const TIER_REGEX = /-(minimal|low|medium|high)$/;
 const QUOTA_PREFIX_REGEX = /^antigravity-/i;
 
@@ -148,6 +176,33 @@ function isThinkingCapableModel(model: string): boolean {
   );
 }
 
+function normalizeGeminiTextModelName(modelWithoutQuota: string): string {
+  const lower = modelWithoutQuota.toLowerCase();
+  return LEGACY_GEMINI_TEXT_REDIRECTS[lower] ?? lower;
+}
+
+function assertSupportedGeminiTextModel(
+  requestedModel: string,
+  resolvedModel: string,
+): void {
+  if (WORKING_GEMINI_TEXT_MODELS.has(resolvedModel.toLowerCase())) {
+    return;
+  }
+
+  const allowed = Array.from(WORKING_GEMINI_TEXT_MODELS)
+    .map((m) => `google/${m}`)
+    .join(", ");
+
+  throw new Error(
+    `Unsupported Gemini text model '${requestedModel}'. Allowed working models: ${allowed}`,
+  );
+}
+
+function isPureGeminiTextModel(modelWithoutQuota: string): boolean {
+  const lower = modelWithoutQuota.toLowerCase();
+  return lower.includes("gemini") && !lower.includes("claude") && !IMAGE_GENERATION_MODELS.test(lower);
+}
+
 /**
  * Resolves a model name with optional tier suffix and quota prefix to its actual API model name
  * and corresponding thinking configuration.
@@ -170,12 +225,17 @@ function isThinkingCapableModel(model: string): boolean {
  */
 export function resolveModelWithTier(requestedModel: string, options: ModelResolverOptions = {}): ResolvedModel {
   const isAntigravity = QUOTA_PREFIX_REGEX.test(requestedModel);
-  const modelWithoutQuota = requestedModel.replace(QUOTA_PREFIX_REGEX, "");
+  const originalModelWithoutQuota = requestedModel.replace(QUOTA_PREFIX_REGEX, "");
+  const isGeminiModel = originalModelWithoutQuota.toLowerCase().includes("gemini");
+  const isImageModel = IMAGE_GENERATION_MODELS.test(originalModelWithoutQuota);
+  const isPureGeminiText = isPureGeminiTextModel(originalModelWithoutQuota);
+  const modelWithoutQuota = isGeminiModel && !isImageModel
+    ? normalizeGeminiTextModelName(originalModelWithoutQuota)
+    : originalModelWithoutQuota;
 
   const tier = extractThinkingTierFromModel(modelWithoutQuota);
   const baseName = tier ? modelWithoutQuota.replace(TIER_REGEX, "") : modelWithoutQuota;
 
-  const isImageModel = IMAGE_GENERATION_MODELS.test(modelWithoutQuota);
   const isClaudeModel = modelWithoutQuota.toLowerCase().includes("claude");
 
   // All models default to Antigravity quota unless cli_first is enabled
@@ -208,6 +268,10 @@ export function resolveModelWithTier(requestedModel: string, options: ModelResol
 
   const resolvedModel = MODEL_FALLBACKS[actualModel] || actualModel;
   const isThinking = isThinkingCapableModel(resolvedModel);
+
+  if (isPureGeminiText) {
+    assertSupportedGeminiTextModel(requestedModel, resolvedModel);
+  }
 
   // Image generation models don't support thinking - return early without thinking config
   if (isImageModel) {

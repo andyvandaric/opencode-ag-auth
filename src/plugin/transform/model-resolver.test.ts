@@ -47,9 +47,10 @@ describe("resolveModelWithTier", () => {
       expect(result.quotaPreference).toBe("antigravity");
     });
 
-    it("gemini-2.0-flash defaults to antigravity", () => {
-      const result = resolveModelWithTier("gemini-2.0-flash");
-      expect(result.quotaPreference).toBe("antigravity");
+    it("rejects unsupported legacy gemini-2.0 models", () => {
+      expect(() => resolveModelWithTier("gemini-2.0-flash")).toThrow(
+        /Unsupported Gemini text model/i,
+      );
     });
   });
 
