@@ -351,6 +351,11 @@ describe("transform/gemini", () => {
       };
       normalizeGeminiTools(payload);
       expect((payload.tools as unknown[])[0]).not.toHaveProperty("custom");
+      expect((payload.tools as unknown[])[0]).toHaveProperty("function");
+      const fn = ((payload.tools as unknown[])[0] as Record<string, unknown>).function as Record<string, unknown>;
+      const schema = fn.input_schema as Record<string, unknown>;
+      expect(fn.name).toBe("custom_tool");
+      expect(schema.type).toBe("OBJECT");
     });
 
     it("extracts schema from inputSchema (camelCase)", () => {
@@ -1182,6 +1187,41 @@ describe("transform/gemini", () => {
       expect(decls[1]!.name).toBe("new_tool");
     });
 
+    it("uses parametersJsonSchema from existing functionDeclarations", () => {
+      const payload: RequestPayload = {
+        contents: [],
+        tools: [
+          {
+            functionDeclarations: [
+              {
+                name: "json_schema_decl",
+                description: "Uses SDK json schema field",
+                parametersJsonSchema: {
+                  type: "OBJECT",
+                  properties: {
+                    command: { type: "STRING" },
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      wrapToolsAsFunctionDeclarations(payload);
+
+      const tools = payload.tools as Array<Record<string, unknown>>;
+      const decls = tools[0]!.functionDeclarations as Array<Record<string, unknown>>;
+      expect(decls).toHaveLength(1);
+      expect(decls[0]!.name).toBe("json_schema_decl");
+      expect(decls[0]!.parameters).toEqual({
+        type: "OBJECT",
+        properties: {
+          command: { type: "STRING" },
+        },
+      });
+    });
+
     it("handles multiple tools correctly", () => {
       const payload: RequestPayload = {
         contents: [],
@@ -1222,6 +1262,41 @@ describe("transform/gemini", () => {
       const tools = payload.tools as Array<Record<string, unknown>>;
       const decls = tools[0]!.functionDeclarations as Array<Record<string, unknown>>;
       expect(decls[0]!.name).toBe("tool-0");
+    });
+
+    it("sanitizes invalid tool names for Gemini API", () => {
+      const payload: RequestPayload = {
+        contents: [],
+        tools: [
+          {
+            name: "1mcp:*bad name",
+            parameters: { type: "OBJECT", properties: {} },
+          },
+        ],
+      };
+
+      wrapToolsAsFunctionDeclarations(payload);
+
+      const tools = payload.tools as Array<Record<string, unknown>>;
+      const decls = tools[0]!.functionDeclarations as Array<Record<string, unknown>>;
+      expect(decls[0]!.name).toBe("tool_1mcp__bad_name");
+    });
+
+    it("deduplicates tool names after sanitization", () => {
+      const payload: RequestPayload = {
+        contents: [],
+        tools: [
+          { name: "foo bar", parameters: { type: "OBJECT", properties: {} } },
+          { name: "foo_bar", parameters: { type: "OBJECT", properties: {} } },
+        ],
+      };
+
+      wrapToolsAsFunctionDeclarations(payload);
+
+      const tools = payload.tools as Array<Record<string, unknown>>;
+      const decls = tools[0]!.functionDeclarations as Array<Record<string, unknown>>;
+      expect(decls[0]!.name).toBe("foo_bar");
+      expect(decls[1]!.name).toBe("foo_bar_1");
     });
 
     it("does nothing when tools is empty", () => {

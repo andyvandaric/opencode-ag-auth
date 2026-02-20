@@ -341,12 +341,9 @@ export function resolveModelForHeaderStyle(
 
   if (headerStyle === "antigravity") {
     let transformedModel = requestedModel
+      .replace(/-preview-customtools$/i, "")
       .replace(/-preview$/i, "")
       .replace(/^antigravity-/i, "");
-
-    const isGemini3Pro = /^gemini-3(?:\.\d+)?-pro/i.test(transformedModel);
-    const hasTierSuffix = /-(low|medium|high)$/i.test(transformedModel);
-    const isImageModel = IMAGE_GENERATION_MODELS.test(transformedModel);
 
     const prefixedModel = `antigravity-${transformedModel}`;
     return resolveModelWithTier(prefixedModel);
@@ -355,6 +352,7 @@ export function resolveModelForHeaderStyle(
   if (headerStyle === "gemini-cli") {
     let transformedModel = requestedModel
       .replace(/^antigravity-/i, "")
+      .replace(/-preview-customtools$/i, "")
       .replace(/-(low|medium|high)$/i, "");
 
     if (!transformedModel.endsWith("-preview")) {

@@ -313,6 +313,12 @@ describe("Issue #103: resolveModelForHeaderStyle", () => {
       expect(result.actualModel).toBe("gemini-3.1-pro-preview");
       expect(result.quotaPreference).toBe("gemini-cli");
     });
+
+    it("strips -preview-customtools before gemini-cli conversion", () => {
+      const result = resolveModelForHeaderStyle("gemini-3.1-pro-preview-customtools", "gemini-cli");
+      expect(result.actualModel).toBe("gemini-3.1-pro-preview");
+      expect(result.quotaPreference).toBe("gemini-cli");
+    });
   });
 
   describe("no transformation needed", () => {

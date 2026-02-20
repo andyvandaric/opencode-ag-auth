@@ -710,7 +710,23 @@ export function prepareAntigravityRequest(
   const requestedModel = rawModel;
 
   const resolved = resolveModelForHeaderStyle(rawModel, headerStyle);
-  const effectiveModel = resolved.actualModel;
+  let effectiveModel = resolved.actualModel;
+
+  const applyGemini3ProTierToEffectiveModel = (level: string | undefined) => {
+    if (!level) {
+      return;
+    }
+    if (headerStyle !== "antigravity") {
+      return;
+    }
+    if (!/^gemini-3(?:\.\d+)?-pro/i.test(effectiveModel)) {
+      return;
+    }
+
+    const normalizedProTier = level.toLowerCase() === "high" ? "high" : "low";
+    const baseGemini3Pro = effectiveModel.replace(/-(minimal|low|medium|high)$/i, "");
+    effectiveModel = `${baseGemini3Pro}-${normalizedProTier}`;
+  };
 
   const streaming = rawAction === STREAM_ACTION;
   const defaultEndpoint = headerStyle === "gemini-cli" ? GEMINI_CLI_ENDPOINT : ANTIGRAVITY_ENDPOINT;
@@ -755,6 +771,30 @@ export function prepareAntigravityRequest(
             requestObjects.push(nested as Record<string, unknown>);
           }
         }
+
+        for (const req of requestObjects) {
+          const variantConfig = extractVariantThinkingConfig(
+            (req.providerOptions as Record<string, unknown> | undefined),
+            (req.generationConfig as Record<string, unknown> | undefined),
+          );
+
+          if (variantConfig?.thinkingLevel) {
+            applyGemini3ProTierToEffectiveModel(variantConfig.thinkingLevel);
+            break;
+          }
+
+          if (typeof variantConfig?.thinkingBudget === "number") {
+            const inferredLevel = variantConfig.thinkingBudget <= 8192
+              ? "low"
+              : variantConfig.thinkingBudget <= 16384
+              ? "medium"
+              : "high";
+            applyGemini3ProTierToEffectiveModel(inferredLevel);
+            break;
+          }
+        }
+
+        wrappedBody.model = effectiveModel;
 
         const conversationKey = resolveConversationKeyFromRequests(requestObjects);
         // Strip tier suffix from model for cache key to prevent cache misses on tier change
@@ -834,6 +874,8 @@ export function prepareAntigravityRequest(
             tierThinkingLevel = undefined;
           }
         }
+
+        applyGemini3ProTierToEffectiveModel(tierThinkingLevel);
 
         if (isClaude) {
           if (!requestPayload.toolConfig) {

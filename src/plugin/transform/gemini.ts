@@ -339,6 +339,15 @@ export function normalizeGeminiTools(payload: RequestPayload): {
         };
       }
 
+      if (!newTool.function && newTool.custom) {
+        const customTool = newTool.custom as Record<string, unknown>;
+        newTool.function = {
+          name: customTool.name || nameCandidate,
+          description: customTool.description || newTool.description,
+          input_schema: schema,
+        };
+      }
+
       // Create custom if both missing
       if (!newTool.custom && !newTool.function) {
         newTool.custom = {
@@ -523,6 +532,15 @@ function isWebSearchTool(tool: Record<string, unknown>): boolean {
   return false;
 }
 
+function sanitizeFunctionName(name: string, fallbackIndex: number): string {
+  const normalized = name.replace(/[^a-zA-Z0-9_-]/g, "_");
+  const ensuredPrefix = /^[a-zA-Z_]/.test(normalized)
+    ? normalized
+    : `tool_${normalized}`;
+  const safe = ensuredPrefix || `tool_${fallbackIndex}`;
+  return safe.slice(0, 64);
+}
+
 export function wrapToolsAsFunctionDeclarations(
   payload: RequestPayload,
 ): WrapToolsResult {
@@ -538,6 +556,22 @@ export function wrapToolsAsFunctionDeclarations(
 
   const passthroughTools: unknown[] = [];
   let hasWebSearchTool = false;
+  const usedFunctionNames = new Map<string, number>();
+
+  const reserveFunctionName = (rawName: string, fallbackIndex: number): string => {
+    const baseName = sanitizeFunctionName(rawName, fallbackIndex);
+    const seen = usedFunctionNames.get(baseName) ?? 0;
+    usedFunctionNames.set(baseName, seen + 1);
+
+    if (seen === 0) {
+      return baseName;
+    }
+
+    const suffix = `_${seen}`;
+    const maxBaseLength = 64 - suffix.length;
+    const truncatedBase = baseName.slice(0, Math.max(1, maxBaseLength));
+    return `${truncatedBase}${suffix}`;
+  };
 
   for (const tool of payload.tools as Array<Record<string, unknown>>) {
     // Handle passthrough tools (Google Search and Code Execution)
@@ -557,13 +591,19 @@ export function wrapToolsAsFunctionDeclarations(
         for (const decl of tool.functionDeclarations as Array<
           Record<string, unknown>
         >) {
-          functionDeclarations.push({
-            name: String(decl.name || `tool-${functionDeclarations.length}`),
-            description: String(decl.description || ""),
-            parameters: (decl.parameters as Record<string, unknown>) || {
+          const schema = (decl.parameters ||
+            decl.parametersJsonSchema ||
+            decl.input_schema ||
+            decl.inputSchema || {
               type: "OBJECT",
               properties: {},
-            },
+            }) as Record<string, unknown>;
+
+          const rawName = String(decl.name || `tool-${functionDeclarations.length}`);
+          functionDeclarations.push({
+            name: reserveFunctionName(rawName, functionDeclarations.length),
+            description: String(decl.description || ""),
+            parameters: schema,
           });
         }
       }
@@ -597,7 +637,7 @@ export function wrapToolsAsFunctionDeclarations(
     >;
 
     functionDeclarations.push({
-      name,
+      name: reserveFunctionName(name, functionDeclarations.length),
       description,
       parameters: schema,
     });
