@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { AccountManager, getNextForFamily, ManagedAccount } from "./accounts";
-import { ModelFamily } from "./storage";
+import { AccountManager } from "./accounts";
+import type { AccountStorageV4 } from "./storage";
 
 // Mock helpers to avoid complex dependencies
 vi.mock("../logger", () => ({
@@ -74,13 +74,13 @@ describe("AccountManager Quota Rotation", () => {
     // Actually constructor signature wasn't fully shown but typically it is.
     // Let's assume we can create an instance.
 
-    const storage = {
+    const storage: AccountStorageV4 = {
       version: 4,
       activeIndex: 0,
+      activeIndexByFamily: { claude: 0, gemini: 0 },
       accounts: mockStoredAccounts,
     };
 
-    // @ts-ignore - Verification only
     const manager = new AccountManager(undefined, storage);
 
     // Threshold 70%
@@ -131,12 +131,12 @@ describe("AccountManager Quota Rotation", () => {
   });
 
   it("selects any account if threshold is 100% (disabled)", () => {
-    const storage = {
+    const storage: AccountStorageV4 = {
       version: 4,
       activeIndex: 0,
+      activeIndexByFamily: { claude: 0, gemini: 0 },
       accounts: mockStoredAccounts,
     };
-    // @ts-ignore
     const manager = new AccountManager(undefined, storage);
 
     // Threshold 100% -> Acc1 (80%) is now available
