@@ -185,8 +185,16 @@ OPENCODE_ANTIGRAVITY_LOG_DIR=/path                        # log_dir
 OPENCODE_ANTIGRAVITY_KEEP_THINKING=1                      # keep_thinking
 OPENCODE_ANTIGRAVITY_ACCOUNT_SELECTION_STRATEGY=round-robin
 OPENCODE_ANTIGRAVITY_PID_OFFSET_ENABLED=1
+OPENCODE_IMAGE_ASPECT_RATIO="16:9"                        # Controls image output dimensions
 ```
 
+### Image Generation
+
+Controls the dimensions of generated images. This setting is managed purely via the `OPENCODE_IMAGE_ASPECT_RATIO` environment variable.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OPENCODE_IMAGE_ASPECT_RATIO` | `"1:1"` | Aspect ratio for generated images. Accepted values: `"1:1"`, `"16:9"`, `"4:3"`, `"9:16"`. |
 
 ---
 

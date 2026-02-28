@@ -116,9 +116,9 @@ const QUOTA_PREFIX_REGEX = /^antigravity-/i;
  * These models don't support thinking and require imageConfig.
  */
 const IMAGE_GENERATION_MODELS = /image|imagen/i;
+export const SUPPORTED_IMAGE_GENERATION_MODELS = ["gemini-3.1-pro-image"];
 
 // Legacy LEGACY_ANTIGRAVITY_GEMINI3 regex removed - all Gemini models now default to antigravity
-
 /**
  * Models that support thinking tier suffixes.
  * Only these models should have -low/-medium/-high stripped as thinking tiers.
@@ -275,6 +275,12 @@ export function resolveModelWithTier(requestedModel: string, options: ModelResol
 
   // Image generation models don't support thinking - return early without thinking config
   if (isImageModel) {
+    if (!SUPPORTED_IMAGE_GENERATION_MODELS.includes(resolvedModel)) {
+      throw new Error(
+        `Image model "${requestedModel}" is not supported. Supported image models: ${SUPPORTED_IMAGE_GENERATION_MODELS.join(", ")}`
+      );
+    }
+
     return {
       actualModel: resolvedModel,
       isThinkingModel: false,

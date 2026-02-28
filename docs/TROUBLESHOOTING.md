@@ -167,6 +167,21 @@ Invalid JSON payload received. Unknown name "parameters" at 'request.tools[0]'
 
 ---
 
+## Image Model Not Supported
+
+**Error:**
+```
+Image model "gemini-3.1-flash-image-preview" is not supported. Supported image models: gemini-3.1-pro-image
+```
+
+**Why this happens:**
+The `gemini-3.1-flash-image-preview` model is currently not supported for image generation through this plugin. The only supported image model is `gemini-3.1-pro-image`.
+
+**Solution:**
+Update your configuration to use the supported model. In your settings or prompt, switch the image model to `gemini-3.1-pro-image` or `antigravity-gemini-3.1-pro-image`.
+
+---
+
 ## MCP Servers Causing Errors
 
 Some MCP servers have schemas incompatible with Antigravity's strict JSON format.

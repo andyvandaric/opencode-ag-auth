@@ -64,13 +64,31 @@ export const ANTIGRAVITY_ENDPOINT = ANTIGRAVITY_ENDPOINT_DAILY;
  * Same as opencode-gemini-auth's GEMINI_CODE_ASSIST_ENDPOINT.
  */
 export const GEMINI_CLI_ENDPOINT = ANTIGRAVITY_ENDPOINT_PROD;
+/**
+ * Client ID for the Gemini CLI OAuth application.
+ */
+export const GEMINI_CLI_CLIENT_ID = "681255809395-uo3ioeahlrs9oiph0qk6n1j1n1uqquvg.apps.googleusercontent.com";
+
+/**
+ * Client secret for the Gemini CLI OAuth application.
+ */
+export const GEMINI_CLI_CLIENT_SECRET = "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";
+
+/**
+ * Scopes required for Gemini CLI OAuth.
+ */
+export const GEMINI_CLI_SCOPES: readonly string[] = [
+  "https://www.googleapis.com/auth/cloud-platform",
+  "https://www.googleapis.com/auth/generative-language.retriever",
+];
+
 
 /**
  * Hardcoded project id used when Antigravity does not return one (e.g., business/workspace accounts).
  */
 export const ANTIGRAVITY_DEFAULT_PROJECT_ID = "rising-fact-p41fc";
 
-const ANTIGRAVITY_VERSION_FALLBACK = "1.18.3";
+const ANTIGRAVITY_VERSION_FALLBACK = "1.19.6";
 let antigravityVersion = ANTIGRAVITY_VERSION_FALLBACK;
 let versionLocked = false;
 

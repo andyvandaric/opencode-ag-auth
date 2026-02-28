@@ -140,8 +140,19 @@ describe("resolveModelWithTier", () => {
       expect(result.explicitQuota).toBe(true);
       expect(result.quotaPreference).toBe("antigravity");
     });
-  });
 
+    it("throws error for unsupported image model gemini-3.1-flash-image-preview", () => {
+      expect(() => resolveModelWithTier("gemini-3.1-flash-image-preview")).toThrow(
+        /Image model "gemini-3.1-flash-image-preview" is not supported/i
+      );
+    });
+
+    it("throws error for unsupported image model with antigravity prefix", () => {
+      expect(() => resolveModelWithTier("antigravity-gemini-2.5-flash-image")).toThrow(
+        /Image model "antigravity-gemini-2.5-flash-image" is not supported/i
+      );
+    });
+  });
   describe("Claude Sonnet 4.6 aliases (thinking enabled)", () => {
     it("antigravity-claude-sonnet-4-6-thinking resolves to thinking Sonnet 4.6", () => {
       const result = resolveModelWithTier("antigravity-claude-sonnet-4-6-thinking");

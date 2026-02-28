@@ -8,7 +8,12 @@ import {
   getAntigravityHeaders,
   type HeaderStyle,
 } from "./constants";
-import { authorizeAntigravity, exchangeAntigravity } from "./antigravity/oauth";
+import {
+  authorizeAntigravity,
+  exchangeAntigravity,
+  authorizeGeminiCli,
+  exchangeGeminiCli,
+} from "./antigravity/oauth";
 import type { AntigravityTokenExchangeResult } from "./antigravity/oauth";
 import {
   accessTokenExpired,
@@ -337,6 +342,11 @@ type VerificationProbeResult = {
   status: "ok" | "blocked" | "error";
   message: string;
   verifyUrl?: string;
+  verificationRequiredType?:
+    | "gemini-cli"
+    | "api-enable"
+    | "google-account"
+    | "unknown";
 };
 
 function decodeEscapedText(input: string): string {
@@ -392,6 +402,11 @@ function extractVerificationErrorDetails(bodyText: string): {
   validationRequired: boolean;
   message?: string;
   verifyUrl?: string;
+  verificationRequiredType?:
+    | "gemini-cli"
+    | "api-enable"
+    | "google-account"
+    | "unknown";
 } {
   const decodedBody = decodeEscapedText(bodyText);
   const lowerBody = decodedBody.toLowerCase();
@@ -511,10 +526,37 @@ function extractVerificationErrorDetails(bodyText: string): {
     }
   }
 
+  const bestVerifyUrl = selectBestVerificationUrl([...verificationUrls]);
+  let verificationRequiredType:
+    | "gemini-cli"
+    | "api-enable"
+    | "google-account"
+    | "unknown" = "unknown";
+
+  const lowerVerifyUrl = bestVerifyUrl?.toLowerCase() ?? "";
+  if (
+    lowerBody.includes("gemini") ||
+    lowerBody.includes("gemini-cli") ||
+    lowerVerifyUrl.includes("gemini")
+  ) {
+    verificationRequiredType = "gemini-cli";
+  } else if (
+    lowerBody.includes("api.enable") ||
+    lowerBody.includes("enable")
+  ) {
+    verificationRequiredType = "api-enable";
+  } else if (
+    lowerBody.includes("accounts.google.com/o/oauth2") ||
+    lowerVerifyUrl.includes("accounts.google.com/o/oauth2")
+  ) {
+    verificationRequiredType = "google-account";
+  }
+
   return {
     validationRequired,
     message,
-    verifyUrl: selectBestVerificationUrl([...verificationUrls]),
+    verifyUrl: bestVerifyUrl,
+    verificationRequiredType: validationRequired ? verificationRequiredType : undefined,
   };
 }
 
@@ -636,6 +678,7 @@ async function verifyAccountAccess(
       message:
         extracted.message ?? "Google requires additional account verification.",
       verifyUrl: extracted.verifyUrl,
+      verificationRequiredType: extracted.verificationRequiredType,
     };
   }
 
@@ -705,6 +748,11 @@ type VerificationStoredAccount = {
   verificationRequired?: boolean;
   verificationRequiredAt?: number;
   verificationRequiredReason?: string;
+  verificationRequiredType?:
+    | "gemini-cli"
+    | "api-enable"
+    | "google-account"
+    | "unknown";
   verificationUrl?: string;
 };
 
@@ -712,6 +760,11 @@ function markStoredAccountVerificationRequired(
   account: VerificationStoredAccount,
   reason: string,
   verifyUrl?: string,
+  verificationRequiredType?:
+    | "gemini-cli"
+    | "api-enable"
+    | "google-account"
+    | "unknown",
 ): boolean {
   let changed = false;
   const wasVerificationRequired = account.verificationRequired === true;
@@ -741,11 +794,15 @@ function markStoredAccountVerificationRequired(
     changed = true;
   }
 
+  if (account.verificationRequiredType !== verificationRequiredType) {
+    account.verificationRequiredType = verificationRequiredType;
+    changed = true;
+  }
+
   if (account.enabled !== false) {
     account.enabled = false;
     changed = true;
   }
-
   return changed;
 }
 
@@ -851,6 +908,7 @@ function parseOAuthCallbackInput(
 
 async function promptManualOAuthInput(
   fallbackState: string,
+  isGeminiCli: boolean = false,
 ): Promise<AntigravityTokenExchangeResult> {
   console.log(
     "1. Open the URL above in your browser and complete Google sign-in.",
@@ -868,7 +926,9 @@ async function promptManualOAuthInput(
     return { type: "failed", error: params.error };
   }
 
-  return exchangeAntigravity(params.code, params.state);
+  return isGeminiCli
+    ? exchangeGeminiCli(params.code, params.state)
+    : exchangeAntigravity(params.code, params.state);
 }
 
 function clampInt(value: number, min: number, max: number): number {
@@ -2924,6 +2984,7 @@ export const createAntigravityPlugin =
                             account.index,
                             verificationReason,
                             extracted.verifyUrl,
+                            extracted.verificationRequiredType,
                           );
                           accountManager.markAccountCoolingDown(
                             account,
@@ -3300,6 +3361,7 @@ export const createAntigravityPlugin =
 
                 // Check for existing accounts and prompt user for login mode
                 let startFresh = true;
+                let isGeminiCli = false;
                 let refreshAccountIndex: number | undefined;
                 const existingStorage = await loadAccounts();
                 if (existingStorage && existingStorage.accounts.length > 0) {
@@ -3772,6 +3834,7 @@ export const createAntigravityPlugin =
                                 account,
                                 verification.message,
                                 verification.verifyUrl,
+                                verification.verificationRequiredType,
                               );
                             if (changed) {
                               storageUpdated = true;
@@ -3780,6 +3843,7 @@ export const createAntigravityPlugin =
                               i,
                               verification.message,
                               verification.verifyUrl,
+                              verification.verificationRequiredType,
                             );
 
                             blockedCount += 1;
@@ -3887,6 +3951,7 @@ export const createAntigravityPlugin =
                           account,
                           verification.message,
                           verification.verifyUrl,
+                          verification.verificationRequiredType,
                         );
                         if (changed) {
                           await saveAccounts(existingStorage);
@@ -3895,6 +3960,7 @@ export const createAntigravityPlugin =
                           verifyAccountIndex,
                           verification.message,
                           verification.verifyUrl,
+                          verification.verificationRequiredType,
                         );
 
                         const verifyUrl =
@@ -4059,9 +4125,9 @@ export const createAntigravityPlugin =
                       );
                     }
                   } else {
-                    startFresh = menuResult.mode === "fresh";
+                    startFresh = menuResult.mode === "fresh" || menuResult.mode === "gemini-cli-login";
+                    isGeminiCli = menuResult.mode === "gemini-cli-login";
                   }
-
                   if (startFresh && !menuResult.deleteAll) {
                     console.log(
                       "\nStarting fresh - existing accounts will be replaced.\n",
@@ -4073,15 +4139,16 @@ export const createAntigravityPlugin =
 
                 while (accounts.length < MAX_OAUTH_ACCOUNTS) {
                   console.log(
-                    `\n=== Antigravity OAuth (Account ${accounts.length + 1}) ===`,
+                    `\n=== ${isGeminiCli ? "Gemini CLI Login" : "Antigravity OAuth"} (Account ${accounts.length + 1}) ===`,
                   );
 
-                  const projectId = await promptProjectId();
+                  const projectId = isGeminiCli ? "" : await promptProjectId();
 
                   const result =
                     await (async (): Promise<AntigravityTokenExchangeResult> => {
-                      const authorization =
-                        await authorizeAntigravity(projectId);
+                      const authorization = isGeminiCli
+                        ? await authorizeGeminiCli()
+                        : await authorizeAntigravity(projectId);
                       const fallbackState = getStateFromAuthorizationUrl(
                         authorization.url,
                       );
@@ -4098,7 +4165,7 @@ export const createAntigravityPlugin =
                             "Please open the URL above manually in your local browser.\n",
                           );
                         }
-                        return promptManualOAuthInput(fallbackState);
+                        return promptManualOAuthInput(fallbackState, isGeminiCli);
                       }
 
                       let listener: OAuthListener | null = null;
@@ -4152,7 +4219,7 @@ export const createAntigravityPlugin =
                                 await listener.close();
                               } catch {}
 
-                              return promptManualOAuthInput(fallbackState);
+                              return promptManualOAuthInput(fallbackState, isGeminiCli);
                             }
                             throw err;
                           }
@@ -4166,7 +4233,9 @@ export const createAntigravityPlugin =
                             };
                           }
 
-                          return exchangeAntigravity(params.code, params.state);
+                          return isGeminiCli
+                            ? exchangeGeminiCli(params.code, params.state)
+                            : exchangeAntigravity(params.code, params.state);
                         } catch (error) {
                           if (
                             error instanceof Error &&
@@ -4191,7 +4260,7 @@ export const createAntigravityPlugin =
                         }
                       }
 
-                      return promptManualOAuthInput(fallbackState);
+                      return promptManualOAuthInput(fallbackState, isGeminiCli);
                     })();
 
                   if (result.type === "failed") {

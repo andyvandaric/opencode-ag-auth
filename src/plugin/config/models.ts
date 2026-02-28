@@ -111,4 +111,14 @@ export const OPENCODE_MODEL_DEFINITIONS: OpencodeModelDefinitions = {
     limit: { context: 1048576, output: 65535 },
     modalities: DEFAULT_MODALITIES,
   },
+  "antigravity-gemini-3.1-pro-image": {
+    name: "Gemini 3.1 Pro Image (Antigravity)",
+    limit: { context: 1048576, output: 65535 },
+    modalities: { input: ["text"], output: ["image"] },
+  },
+  "gemini-3.1-pro-image": {
+    name: "Gemini 3.1 Pro Image (Gemini CLI)",
+    limit: { context: 1048576, output: 65535 },
+    modalities: { input: ["text"], output: ["image"] },
+  },
 };

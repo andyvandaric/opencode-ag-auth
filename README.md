@@ -161,7 +161,21 @@ For a complete installation guide, including manual methods and advanced agent p
 opencode run "Hello" --model=google/antigravity-claude-sonnet-4-6-thinking --variant=max
 ```
 
-For details on variant configuration and thinking levels, see [docs/MODEL-VARIANTS.md](docs/MODEL-VARIANTS.md).
+164: For details on variant configuration and thinking levels, see [docs/MODEL-VARIANTS.md](docs/MODEL-VARIANTS.md).
+165: 
+166: ### Image Generation
+167: 
+168: The plugin supports image generation via the Antigravity proxy. Due to compatibility constraints, only specific image generation models are available.
+169: 
+170: **Supported Image Models:**
+171: - `gemini-3.1-pro-image` (or `antigravity-gemini-3.1-pro-image` to explicitly route via Antigravity quota)
+172: 
+173: > **⚠️ Compatibility Note:** `gemini-3.1-flash-image-preview` is **NOT** supported via the Antigravity proxy and will throw an error if attempted. Always use `gemini-3.1-pro-image`.
+174: 
+175: **Example Usage:**
+176: ```bash
+177: opencode run "Generate a beautiful landscape" --model=google/antigravity-gemini-3.1-pro-image
+178: ```
 
 <details>
 <summary><b>Full models configuration (copy-paste ready)</b></summary>
@@ -234,12 +248,22 @@ Add this to your `~/.config/opencode/opencode.json`:
           "limit": { "context": 1048576, "output": 65536 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
         },
-        "gemini-3.1-pro-preview": {
-          "name": "Gemini 3.1 Pro Preview (Gemini CLI)",
-          "limit": { "context": 1048576, "output": 65535 },
-          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
-        }
-      }
+                 "gemini-3.1-pro-preview": {
+           "name": "Gemini 3.1 Pro Preview (Gemini CLI)",
+           "limit": { "context": 1048576, "output": 65535 },
+           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
+         },
+         "antigravity-gemini-3.1-pro-image": {
+           "name": "Gemini 3.1 Pro Image (Antigravity)",
+           "limit": { "context": 1048576, "output": 65535 },
+           "modalities": { "input": ["text"], "output": ["image"] }
+         },
+         "gemini-3.1-pro-image": {
+           "name": "Gemini 3.1 Pro Image",
+           "limit": { "context": 1048576, "output": 65535 },
+           "modalities": { "input": ["text"], "output": ["image"] }
+         }
+       }
     }
   }
 }
