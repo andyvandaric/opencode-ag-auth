@@ -57,6 +57,7 @@ import {
   closeToolLoopForThinking,
   needsThinkingRecovery,
 } from "./thinking-recovery";
+import { SUPPORTED_IMAGE_GENERATION_MODELS } from "./transform/model-resolver";
 import { sanitizeCrossModelPayloadInPlace } from "./transform/cross-model-sanitizer";
 import { isGemini3Model, isImageGenerationModel, buildImageGenerationConfig, applyGeminiTransforms } from "./transform";
 import {
@@ -946,6 +947,9 @@ export function prepareAntigravityRequest(
 
         // For image models, add imageConfig instead of thinkingConfig
         if (isImageModel) {
+          if (!SUPPORTED_IMAGE_GENERATION_MODELS.includes(effectiveModel)) {
+            throw new Error(`Image model "${effectiveModel}" is not supported at request layer. Supported: ${SUPPORTED_IMAGE_GENERATION_MODELS.join(', ')}`);
+          }
           const imageConfig = buildImageGenerationConfig();
           const generationConfig = (rawGenerationConfig ?? {}) as Record<string, unknown>;
           generationConfig.imageConfig = imageConfig;

@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest"
 import {
   GEMINI_CLI_HEADERS,
   getRandomizedHeaders,
+  getAntigravityVersion,
+  setAntigravityVersion,
+  ANTIGRAVITY_VERSION,
   type HeaderSet,
 } from "./constants.ts"
 
@@ -86,5 +89,30 @@ describe("HeaderSet type", () => {
     expect(headers["User-Agent"]).toBe("test")
     expect(headers["X-Goog-Api-Client"]).toBe("test-client")
     expect(headers["Client-Metadata"]).toBe("test-metadata")
+  })
+})
+
+describe("ANTIGRAVITY_VERSION_FALLBACK and getAntigravityVersion()", () => {
+  it("ANTIGRAVITY_VERSION_FALLBACK is '1.19.6'", async () => {
+    const { getAntigravityVersion } = await import("./constants.ts")
+    expect(getAntigravityVersion()).toBe("1.19.6")
+  })
+
+  it("setAntigravityVersion() updates getAntigravityVersion() to '1.20.0'", async () => {
+    const { getAntigravityVersion, setAntigravityVersion } = await import("./constants.ts")
+    setAntigravityVersion("1.20.0")
+    expect(getAntigravityVersion()).toBe("1.20.0")
+  })
+
+  it("after setAntigravityVersion() is called once, calling it again has no effect", async () => {
+    const { getAntigravityVersion, setAntigravityVersion } = await import("./constants.ts")
+    // Note: If this test runs after the previous one, it's already locked to '1.20.0'
+    const current = getAntigravityVersion()
+    setAntigravityVersion("1.21.0")
+    expect(getAntigravityVersion()).toBe(current)
+  })
+
+  it("ANTIGRAVITY_VERSION deprecated export equals '1.19.6'", () => {
+    expect(ANTIGRAVITY_VERSION).toBe("1.19.6")
   })
 })

@@ -199,6 +199,7 @@ export interface AccountMetadataV3 {
   verificationRequiredAt?: number;
   verificationRequiredReason?: string;
   verificationUrl?: string;
+  verificationRequiredType?: "gemini-cli" | "api-enable" | "google-account" | "unknown";
   /** Cached soft quota data */
   cachedQuota?: Record<string, { remainingFraction?: number; resetTime?: string; modelCount: number }>;
   cachedQuotaUpdatedAt?: number;
@@ -347,7 +348,7 @@ export function getStoragePath(): string {
  */
 export { getConfigDir };
 
-const LOCK_OPTIONS = {
+export const LOCK_OPTIONS = {
   stale: 10000,
   retries: {
     retries: 5,
@@ -356,6 +357,7 @@ const LOCK_OPTIONS = {
     factor: 2,
   },
 };
+
 
 /**
  * Ensures the file has secure permissions (0600) on POSIX systems.

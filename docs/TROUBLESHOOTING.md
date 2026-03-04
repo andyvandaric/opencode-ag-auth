@@ -167,6 +167,21 @@ Invalid JSON payload received. Unknown name "parameters" at 'request.tools[0]'
 
 ---
 
+## Image Model Not Supported
+
+**Error:**
+```
+Image generation models are not supported via the Antigravity proxy endpoint (cloudcode-pa v1internal).
+```
+
+**Why this happens:**
+This plugin routes requests through Google Cloud Code internal endpoints (`v1internal:*`) for coding-assistant traffic. Those endpoints do not expose public image-generation model IDs, so image model requests fail.
+
+**Solution:**
+Use text/code models with this plugin. For image generation, call the direct Gemini API in a separate workflow outside this proxy path.
+
+---
+
 ## MCP Servers Causing Errors
 
 Some MCP servers have schemas incompatible with Antigravity's strict JSON format.

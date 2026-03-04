@@ -163,6 +163,14 @@ opencode run "Hello" --model=google/antigravity-claude-sonnet-4-6-thinking --var
 
 For details on variant configuration and thinking levels, see [docs/MODEL-VARIANTS.md](docs/MODEL-VARIANTS.md).
 
+### Image Generation
+
+Image generation models are not supported through this plugin's Antigravity proxy path (`cloudcode-pa.googleapis.com/v1internal:*`).
+
+If you use image model IDs such as `gemini-3.1-flash-image-preview` (or prefixed aliases), the backend returns `404 Requested entity was not found`.
+
+Use this plugin with text/code models only. For image generation, call the direct Gemini API outside this proxy flow.
+
 <details>
 <summary><b>Full models configuration (copy-paste ready)</b></summary>
 
@@ -234,12 +242,13 @@ Add this to your `~/.config/opencode/opencode.json`:
           "limit": { "context": 1048576, "output": 65536 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
         },
-        "gemini-3.1-pro-preview": {
-          "name": "Gemini 3.1 Pro Preview (Gemini CLI)",
-          "limit": { "context": 1048576, "output": 65535 },
-          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
+                 "gemini-3.1-pro-preview": {
+           "name": "Gemini 3.1 Pro Preview (Gemini CLI)",
+           "limit": { "context": 1048576, "output": 65535 },
+           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
+         },
         }
-      }
+       }
     }
   }
 }

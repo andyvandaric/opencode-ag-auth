@@ -72,10 +72,10 @@ describe("resolveModelWithTier", () => {
       expect(result.quotaPreference).toBe("antigravity");
     });
 
-    it("keeps antigravity for image models when cli_first is true", () => {
-      const result = resolveModelWithTier("gemini-3.1-pro-image", { cli_first: true });
-      expect(result.quotaPreference).toBe("antigravity");
-      expect(result.explicitQuota).toBe(true);
+    it("rejects image models even when cli_first is true", () => {
+      expect(() => resolveModelWithTier("gemini-3.1-flash-image-preview", { cli_first: true })).toThrow(
+        /Image generation models are not supported via the Antigravity proxy endpoint/i,
+      );
     });
 
     it("defaults to antigravity when cli_first is false", () => {
@@ -125,23 +125,30 @@ describe("resolveModelWithTier", () => {
   });
 
   describe("Image models", () => {
-    it("marks antigravity-gemini-3.1-pro-image as explicit quota", () => {
-      const result = resolveModelWithTier("antigravity-gemini-3.1-pro-image");
-      expect(result.actualModel).toBe("gemini-3.1-pro-image");
-      expect(result.isImageModel).toBe(true);
-      expect(result.explicitQuota).toBe(true);
-      expect(result.quotaPreference).toBe("antigravity");
+    it("throws for antigravity-gemini-3.1-flash-image-preview", () => {
+      expect(() => resolveModelWithTier("antigravity-gemini-3.1-flash-image-preview")).toThrow(
+        /Image generation models are not supported via the Antigravity proxy endpoint/i,
+      );
     });
 
-    it("marks gemini-3.1-pro-image as explicit quota", () => {
-      const result = resolveModelWithTier("gemini-3.1-pro-image");
-      expect(result.actualModel).toBe("gemini-3.1-pro-image");
-      expect(result.isImageModel).toBe(true);
-      expect(result.explicitQuota).toBe(true);
-      expect(result.quotaPreference).toBe("antigravity");
+    it("throws for gemini-3.1-flash-image-preview", () => {
+      expect(() => resolveModelWithTier("gemini-3.1-flash-image-preview")).toThrow(
+        /Image generation models are not supported via the Antigravity proxy endpoint/i,
+      );
+    });
+
+    it("throws for legacy gemini-3.1-pro-image", () => {
+      expect(() => resolveModelWithTier("gemini-3.1-pro-image")).toThrow(
+        /Image generation models are not supported via the Antigravity proxy endpoint/i,
+      );
+    });
+
+    it("throws for antigravity-gemini-2.5-flash-image", () => {
+      expect(() => resolveModelWithTier("antigravity-gemini-2.5-flash-image")).toThrow(
+        /Image generation models are not supported via the Antigravity proxy endpoint/i,
+      );
     });
   });
-
   describe("Claude Sonnet 4.6 aliases (thinking enabled)", () => {
     it("antigravity-claude-sonnet-4-6-thinking resolves to thinking Sonnet 4.6", () => {
       const result = resolveModelWithTier("antigravity-claude-sonnet-4-6-thinking");
@@ -301,6 +308,12 @@ describe("Issue #103: resolveModelForHeaderStyle", () => {
       const result = resolveModelForHeaderStyle("gemini-3.1-pro-preview", "antigravity");
       expect(result.actualModel).toBe("gemini-3.1-pro-low");
       expect(result.quotaPreference).toBe("antigravity");
+    });
+
+    it("rejects image preview model for antigravity", () => {
+      expect(() => resolveModelForHeaderStyle("gemini-3.1-flash-image-preview", "antigravity")).toThrow(
+        /Image generation models are not supported via the Antigravity proxy endpoint/i,
+      );
     });
   });
 

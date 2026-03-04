@@ -65,9 +65,8 @@ export const MODEL_ALIASES: Record<string, string> = {
   "gemini-claude-opus-4-6-thinking-medium": "claude-opus-4-6-thinking",
   "gemini-claude-opus-4-6-thinking-high": "claude-opus-4-6-thinking",
 
-  // Image generation models - only gemini-3.1-pro-image is available via Antigravity API
-  // Note: gemini-2.5-flash-image (Nano Banana) is NOT supported by Antigravity - only Google AI API
-  // Reference: Antigravity-Manager/src-tauri/src/proxy/common/model_mapping.rs
+  // Cloudcode v1internal endpoint is code-assist focused and does not expose
+  // public image-generation model IDs. Keep image detection for fast local errors.
 };
 
 /**
@@ -112,13 +111,15 @@ const QUOTA_PREFIX_REGEX = /^antigravity-/i;
 // ANTIGRAVITY_ONLY_MODELS removed - all models now default to antigravity
 
 /**
- * Image generation models - always route to Antigravity.
- * These models don't support thinking and require imageConfig.
+ * Image-generation model detection for fast fail behavior.
+ * Cloudcode v1internal endpoint does not support image model IDs.
  */
 const IMAGE_GENERATION_MODELS = /image|imagen/i;
+export const SUPPORTED_IMAGE_GENERATION_MODELS: string[] = [];
+export const IMAGE_MODELS_UNSUPPORTED_MESSAGE =
+  "Image generation models are not supported via the Antigravity proxy endpoint (cloudcode-pa v1internal). Use a text model here or call Gemini API directly for image generation.";
 
 // Legacy LEGACY_ANTIGRAVITY_GEMINI3 regex removed - all Gemini models now default to antigravity
-
 /**
  * Models that support thinking tier suffixes.
  * Only these models should have -low/-medium/-high stripped as thinking tiers.
@@ -273,15 +274,11 @@ export function resolveModelWithTier(requestedModel: string, options: ModelResol
     assertSupportedGeminiTextModel(requestedModel, resolvedModel);
   }
 
-  // Image generation models don't support thinking - return early without thinking config
+  // Image generation models are currently unsupported on cloudcode v1internal.
   if (isImageModel) {
-    return {
-      actualModel: resolvedModel,
-      isThinkingModel: false,
-      isImageModel: true,
-      quotaPreference,
-      explicitQuota,
-    };
+    throw new Error(
+      `${IMAGE_MODELS_UNSUPPORTED_MESSAGE} Requested image model: "${requestedModel}" (resolved: "${resolvedModel}").`
+    );
   }
 
   // Check if this is a Gemini 3 model (works for both aliased and skipAlias paths)
@@ -397,7 +394,12 @@ export function resolveModelForHeaderStyle(
   headerStyle: "antigravity" | "gemini-cli"
 ): ResolvedModel {
   const lower = requestedModel.toLowerCase();
+  const isImageModel = IMAGE_GENERATION_MODELS.test(lower);
   const isGemini3 = /gemini-3(?:\.\d+)?/i.test(lower);
+
+  if (isImageModel) {
+    return resolveModelWithTier(requestedModel);
+  }
 
   if (!isGemini3) {
     return resolveModelWithTier(requestedModel);
