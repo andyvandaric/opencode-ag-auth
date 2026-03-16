@@ -497,7 +497,7 @@ async function runMultiTurnTest(test: MultiTurnTest): Promise<TestResult> {
       }
     }
 
-    if (result.code !== 0 && result.code !== null) {
+    if (result.code !== 0) {
       const isTimeout = Date.now() - turnStart >= test.timeout - 1000;
       if (isTimeout) {
         process.stdout.write("\r" + " ".repeat(50) + "\r");
@@ -509,6 +509,16 @@ async function runMultiTurnTest(test: MultiTurnTest): Promise<TestResult> {
           sessionId: sessionId ?? undefined,
         };
       }
+
+      process.stdout.write("\r" + " ".repeat(50) + "\r");
+      const errorOutput = (result.stderr || result.output || "Unknown error").slice(0, 500);
+      return {
+        success: false,
+        error: `Turn ${index + 1}: Command failed with exit code ${result.code}. ${errorOutput}`,
+        duration: Date.now() - start,
+        turnsCompleted,
+        sessionId: sessionId ?? undefined,
+      };
     }
 
     sessionId = result.sessionId;
