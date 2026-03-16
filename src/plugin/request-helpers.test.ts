@@ -1579,10 +1579,10 @@ describe("createSyntheticErrorResponse", () => {
   });
 
   it("uses provided model in message_start event", async () => {
-    const response = createSyntheticErrorResponse("Error", "claude-opus-4");
+    const response = createSyntheticErrorResponse("Error", "claude-opus-4-6");
     const text = await response.text();
 
-    expect(text).toContain("claude-opus-4");
+    expect(text).toContain("claude-opus-4-6");
   });
 
   it("generates valid Claude SSE event structure", async () => {

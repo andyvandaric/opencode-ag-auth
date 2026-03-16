@@ -23,4 +23,24 @@ describe("cli_first config", () => {
     expect(typeof cliFirst?.description).toBe("string");
     expect(cliFirst?.description?.length ?? 0).toBeGreaterThan(0);
   });
+
+  it("includes allow_ai_credit_overages default in DEFAULT_CONFIG", () => {
+    expect(DEFAULT_CONFIG).toHaveProperty("allow_ai_credit_overages", false);
+  });
+
+  it("documents allow_ai_credit_overages in the JSON schema", () => {
+    const schemaPath = new URL("../../../assets/antigravity.schema.json", import.meta.url);
+    const schema = JSON.parse(readFileSync(schemaPath, "utf8")) as {
+      properties?: Record<string, { type?: string; default?: unknown; description?: string }>;
+    };
+
+    const allowAiCreditOverages = schema.properties?.allow_ai_credit_overages;
+    expect(allowAiCreditOverages).toBeDefined();
+    expect(allowAiCreditOverages).toMatchObject({
+      type: "boolean",
+      default: false,
+    });
+    expect(typeof allowAiCreditOverages?.description).toBe("string");
+    expect(allowAiCreditOverages?.description?.length ?? 0).toBeGreaterThan(0);
+  });
 });

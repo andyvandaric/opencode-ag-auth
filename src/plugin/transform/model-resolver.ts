@@ -1,7 +1,7 @@
 /**
  * Model Resolution with Thinking Tier Support
  * 
- * Resolves model names with tier suffixes (e.g., gemini-3.1-pro-high, claude-sonnet-4-5-thinking-low)
+ * Resolves model names with tier suffixes (e.g., gemini-3.1-pro-high, claude-opus-4-6-thinking-low)
  * to their actual API model names and corresponding thinking configurations.
  */
 
@@ -47,10 +47,6 @@ export const MODEL_ALIASES: Record<string, string> = {
   "gemini-3-flash-high": "gemini-3-flash",
 
   // Claude proxy names (gemini- prefix for compatibility)
-  "gemini-claude-sonnet-4-5": "claude-sonnet-4-5",
-  "gemini-claude-sonnet-4-5-thinking-low": "claude-sonnet-4-5-thinking",
-  "gemini-claude-sonnet-4-5-thinking-medium": "claude-sonnet-4-5-thinking",
-  "gemini-claude-sonnet-4-5-thinking-high": "claude-sonnet-4-5-thinking",
   "gemini-claude-sonnet-4-6": "claude-sonnet-4-6",
   // Antigravity exposes Sonnet 4.6 as non-thinking only for now until rolled out
   "gemini-claude-sonnet-4-6-thinking": "claude-sonnet-4-6",
@@ -58,9 +54,6 @@ export const MODEL_ALIASES: Record<string, string> = {
   "gemini-claude-sonnet-4-6-thinking-low": "claude-sonnet-4-6",
   "gemini-claude-sonnet-4-6-thinking-medium": "claude-sonnet-4-6",
   "gemini-claude-sonnet-4-6-thinking-high": "claude-sonnet-4-6",
-  "gemini-claude-opus-4-5-thinking-low": "claude-opus-4-5-thinking",
-  "gemini-claude-opus-4-5-thinking-medium": "claude-opus-4-5-thinking",
-  "gemini-claude-opus-4-5-thinking-high": "claude-opus-4-5-thinking",
   "gemini-claude-opus-4-6-thinking-low": "claude-opus-4-6-thinking",
   "gemini-claude-opus-4-6-thinking-medium": "claude-opus-4-6-thinking",
   "gemini-claude-opus-4-6-thinking-high": "claude-opus-4-6-thinking",
@@ -104,6 +97,13 @@ const LEGACY_GEMINI_TEXT_REDIRECTS: Record<string, string> = {
   "gemini-2.5-pro-preview": "gemini-2.5-pro",
   "gemini-2.5-flash-preview": "gemini-2.5-flash",
 };
+
+const DEPRECATED_CLAUDE_45_MODELS = [
+  "claude-sonnet-4-5",
+  "claude-opus-4-5",
+  "gemini-claude-sonnet-4-5",
+  "gemini-claude-opus-4-5",
+] as const;
 
 const TIER_REGEX = /-(minimal|low|medium|high)$/;
 const QUOTA_PREFIX_REGEX = /^antigravity-/i;
@@ -182,6 +182,21 @@ function normalizeGeminiTextModelName(modelWithoutQuota: string): string {
   return LEGACY_GEMINI_TEXT_REDIRECTS[lower] ?? lower;
 }
 
+function assertSupportedRequestedModel(requestedModel: string, modelWithoutQuota: string): void {
+  const lowerRequested = requestedModel.toLowerCase();
+  const lowerModel = modelWithoutQuota.toLowerCase();
+
+  if (
+    DEPRECATED_CLAUDE_45_MODELS.some(
+      (model) => lowerRequested.includes(model) || lowerModel.includes(model),
+    )
+  ) {
+    throw new Error(
+      `Deprecated Claude 4.5 model '${requestedModel}' is no longer supported. Use Claude Sonnet 4.6 or Claude Opus 4.6 thinking instead.`,
+    );
+  }
+}
+
 function assertSupportedGeminiTextModel(
   requestedModel: string,
   resolvedModel: string,
@@ -218,7 +233,7 @@ function isPureGeminiTextModel(modelWithoutQuota: string): boolean {
  * - "gemini-2.5-flash" → { quotaPreference: "antigravity" }
  * - "gemini-3.1-pro-preview" → { quotaPreference: "antigravity" }
  * - "antigravity-gemini-3.1-pro-high" → { quotaPreference: "antigravity", explicitQuota: true }
- * - "claude-sonnet-4-5-thinking-medium" → { quotaPreference: "antigravity" }
+ * - "claude-opus-4-6-thinking-medium" → { quotaPreference: "antigravity" }
  *
  * @param requestedModel - The model name from the request
  * @param options - Optional configuration including cli_first preference
@@ -227,6 +242,7 @@ function isPureGeminiTextModel(modelWithoutQuota: string): boolean {
 export function resolveModelWithTier(requestedModel: string, options: ModelResolverOptions = {}): ResolvedModel {
   const isAntigravity = QUOTA_PREFIX_REGEX.test(requestedModel);
   const originalModelWithoutQuota = requestedModel.replace(QUOTA_PREFIX_REGEX, "");
+  assertSupportedRequestedModel(requestedModel, originalModelWithoutQuota);
   const isGeminiModel = originalModelWithoutQuota.toLowerCase().includes("gemini");
   const isImageModel = IMAGE_GENERATION_MODELS.test(originalModelWithoutQuota);
   const isPureGeminiText = isPureGeminiTextModel(originalModelWithoutQuota);

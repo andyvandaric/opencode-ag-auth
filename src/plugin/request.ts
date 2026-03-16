@@ -833,8 +833,6 @@ export function prepareAntigravityRequest(
         wrappedBody.model = effectiveModel;
 
         const conversationKey = resolveConversationKeyFromRequests(requestObjects);
-        // Strip tier suffix from model for cache key to prevent cache misses on tier change
-        // e.g., "claude-opus-4-5-thinking-high" -> "claude-opus-4-5-thinking"
         const modelForCacheKey = effectiveModel.replace(/-(minimal|low|medium|high)$/i, "");
         signatureSessionKey = buildSignatureSessionKey(PLUGIN_SESSION_ID, modelForCacheKey, conversationKey, resolveProjectKey(parsedBody.project));
 
@@ -1232,7 +1230,9 @@ export function prepareAntigravityRequest(
               };
 
               if (Array.isArray(tool.functionDeclarations) && tool.functionDeclarations.length > 0) {
-                tool.functionDeclarations.forEach((decl: any) => pushDeclaration(decl, "functionDeclarations"));
+                tool.functionDeclarations.forEach((decl: any) => {
+                  pushDeclaration(decl, "functionDeclarations");
+                });
                 return;
               }
 
@@ -1716,14 +1716,22 @@ export async function transformAntigravityResponse(
     const text = await response.text();
 
     if (!response.ok) {
-      let errorBody;
+      let errorBody: {
+        error?: {
+          message?: string;
+          [key: string]: unknown;
+        };
+        [key: string]: unknown;
+      };
       try {
-        errorBody = JSON.parse(text);
+        const parsed = JSON.parse(text) as unknown;
+        errorBody = typeof parsed === "object" && parsed !== null
+          ? (parsed as typeof errorBody)
+          : { error: { message: text } };
       } catch {
         errorBody = { error: { message: text } };
       }
 
-      // Inject Debug Info
       if (errorBody?.error) {
         const debugInfo = `\n\n[Debug Info]\nRequested Model: ${requestedModel || "Unknown"}\nEffective Model: ${effectiveModel || "Unknown"}\nProject: ${projectId || "Unknown"}\nEndpoint: ${endpoint || "Unknown"}\nStatus: ${response.status}\nRequest ID: ${headers.get("x-request-id") || "N/A"}${toolDebugMissing !== undefined ? `\nTool Debug Missing: ${toolDebugMissing}` : ""}${toolDebugSummary ? `\nTool Debug Summary: ${toolDebugSummary}` : ""}${toolDebugPayload ? `\nTool Debug Payload: ${toolDebugPayload}` : ""}`;
         const injectedDebug = debugText ? `\n\n${debugText}` : "";

@@ -1896,6 +1896,11 @@ export const createAntigravityPlugin =
                   config.soft_quota_cache_ttl_minutes,
                   config.quota_refresh_interval_minutes,
                 );
+                const preferredSoftQuotaThreshold =
+                  getSoftQuotaThresholdForHeaderStyle(
+                    config,
+                    preferredHeaderStyle,
+                  );
 
                 let account = accountManager.getCurrentOrNextForFamily(
                   family,
@@ -1903,7 +1908,7 @@ export const createAntigravityPlugin =
                   config.account_selection_strategy,
                   preferredHeaderStyle,
                   config.pid_offset_enabled,
-                  config.soft_quota_threshold_percent,
+                  preferredSoftQuotaThreshold,
                   softQuotaCacheTtlMs,
                 );
 
@@ -1912,13 +1917,18 @@ export const createAntigravityPlugin =
                     preferredHeaderStyle === "antigravity"
                       ? "gemini-cli"
                       : "antigravity";
+                  const alternateSoftQuotaThreshold =
+                    getSoftQuotaThresholdForHeaderStyle(
+                      config,
+                      alternateHeaderStyle,
+                    );
                   account = accountManager.getCurrentOrNextForFamily(
                     family,
                     model,
                     config.account_selection_strategy,
                     alternateHeaderStyle,
                     config.pid_offset_enabled,
-                    config.soft_quota_threshold_percent,
+                    alternateSoftQuotaThreshold,
                     softQuotaCacheTtlMs,
                   );
                   if (account) {
@@ -1932,12 +1942,12 @@ export const createAntigravityPlugin =
                   if (
                     accountManager.areAllAccountsOverSoftQuota(
                       family,
-                      config.soft_quota_threshold_percent,
+                      preferredSoftQuotaThreshold,
                       softQuotaCacheTtlMs,
                       model,
                     )
                   ) {
-                    const threshold = config.soft_quota_threshold_percent;
+                    const threshold = preferredSoftQuotaThreshold;
                     const softQuotaWaitMs =
                       accountManager.getMinWaitTimeForSoftQuota(
                         family,
@@ -4672,6 +4682,16 @@ function resolveHeaderRoutingDecision(
   };
 }
 
+function getSoftQuotaThresholdForHeaderStyle(
+  config: AntigravityConfig,
+  headerStyle: HeaderStyle,
+): number {
+  if (config.allow_ai_credit_overages && headerStyle === "antigravity") {
+    return 100;
+  }
+  return config.soft_quota_threshold_percent;
+}
+
 function getCliFirst(config: AntigravityConfig): boolean {
   return (
     (config as AntigravityConfig & { cli_first?: boolean }).cli_first ?? false
@@ -4707,6 +4727,7 @@ function isExplicitQuotaFromUrl(urlString: string): boolean {
 
 export const __testExports = {
   getHeaderStyleFromUrl,
+  getSoftQuotaThresholdForHeaderStyle,
   resolveHeaderRoutingDecision,
   resolveQuotaFallbackHeaderStyle,
 };

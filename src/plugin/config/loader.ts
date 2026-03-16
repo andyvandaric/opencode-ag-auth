@@ -192,6 +192,13 @@ function applyEnvOverrides(config: AntigravityConfig): AntigravityConfig {
           10,
         )
       : config.soft_quota_threshold_percent,
+
+    // OPENCODE_ANTIGRAVITY_ALLOW_AI_CREDIT_OVERAGES=1
+    allow_ai_credit_overages:
+      env.OPENCODE_ANTIGRAVITY_ALLOW_AI_CREDIT_OVERAGES === "1" ||
+      env.OPENCODE_ANTIGRAVITY_ALLOW_AI_CREDIT_OVERAGES === "true"
+        ? true
+        : config.allow_ai_credit_overages,
   };
 }
 

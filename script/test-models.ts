@@ -12,10 +12,10 @@ export type ModelCategory =
 export interface ModelTest {
   model: string;
   category: ModelCategory;
-  variant?: "low" | "medium" | "high" | "max";
+  variant?: "minimal" | "low" | "medium" | "high" | "max";
 }
 
-const MODELS: ModelTest[] = [
+export const MODELS: ModelTest[] = [
   // Gemini CLI (direct Google API)
   { model: "google/gemini-3-flash-preview", category: "gemini-cli" },
   { model: "google/gemini-3.1-pro-preview", category: "gemini-cli" },
@@ -23,21 +23,16 @@ const MODELS: ModelTest[] = [
   { model: "google/gemini-2.5-flash", category: "gemini-cli" },
 
   // Antigravity Gemini
-  { model: "google/antigravity-gemini-3.1-pro-low", category: "antigravity-gemini" },
-  { model: "google/antigravity-gemini-3.1-pro-high", category: "antigravity-gemini" },
-  { model: "google/antigravity-gemini-3-flash", category: "antigravity-gemini" },
+  { model: "google/antigravity-gemini-3.1-pro", category: "antigravity-gemini", variant: "low" },
+  { model: "google/antigravity-gemini-3.1-pro", category: "antigravity-gemini", variant: "high" },
+  { model: "google/antigravity-gemini-3-flash", category: "antigravity-gemini", variant: "medium" },
 
   // Antigravity Claude
   { model: "google/antigravity-claude-sonnet-4-6", category: "antigravity-claude" },
   { model: "google/antigravity-claude-sonnet-4-6-thinking", category: "antigravity-claude", variant: "low" },
-  { model: "google/antigravity-claude-sonnet-4-6-thinking", category: "antigravity-claude", variant: "medium" },
-  { model: "google/antigravity-claude-sonnet-4-6-thinking", category: "antigravity-claude", variant: "high" },
-  { model: "google/antigravity-claude-opus-4-5-thinking", category: "antigravity-claude", variant: "low" },
-  { model: "google/antigravity-claude-opus-4-5-thinking", category: "antigravity-claude", variant: "medium" },
-  { model: "google/antigravity-claude-opus-4-5-thinking", category: "antigravity-claude", variant: "high" },
+  { model: "google/antigravity-claude-sonnet-4-6-thinking", category: "antigravity-claude", variant: "max" },
   { model: "google/antigravity-claude-opus-4-6-thinking", category: "antigravity-claude", variant: "low" },
-  { model: "google/antigravity-claude-opus-4-6-thinking", category: "antigravity-claude", variant: "medium" },
-  { model: "google/antigravity-claude-opus-4-6-thinking", category: "antigravity-claude", variant: "high" },
+  { model: "google/antigravity-claude-opus-4-6-thinking", category: "antigravity-claude", variant: "max" },
 ];
 
 const TEST_PROMPT = "Reply with exactly one word: WORKING";

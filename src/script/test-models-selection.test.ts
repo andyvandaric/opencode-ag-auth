@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  MODELS,
   selectModelTests,
   type ModelCategory,
   type ModelTest,
 } from "../../script/test-models.ts"
+import { OPENCODE_MODEL_DEFINITIONS } from "../plugin/config/models"
 
 const BASE_MODELS: ModelTest[] = [
   { model: "google/gemini-3-flash-preview", category: "gemini-cli" },
@@ -12,6 +14,22 @@ const BASE_MODELS: ModelTest[] = [
 ]
 
 describe("selectModelTests", () => {
+  it("keeps configured script models aligned with model definitions", () => {
+    for (const configured of MODELS) {
+      const modelName = configured.model.replace(/^google\//, "")
+      const definition = OPENCODE_MODEL_DEFINITIONS[modelName]
+
+      expect(definition, `${modelName} should exist in OPENCODE_MODEL_DEFINITIONS`).toBeDefined()
+
+      if (configured.variant) {
+        expect(
+          definition?.variants?.[configured.variant],
+          `${modelName} should support variant ${configured.variant}`,
+        ).toBeDefined()
+      }
+    }
+  })
+
   it("returns matching configured model when filter exists", () => {
     const tests = selectModelTests(BASE_MODELS, {
       filterModel: "google/gemini-3-flash-preview",
