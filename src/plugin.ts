@@ -1,7 +1,6 @@
 import { exec } from "node:child_process";
 import { tool } from "@opencode-ai/plugin";
 import {
-  ANTIGRAVITY_DEFAULT_PROJECT_ID,
   ANTIGRAVITY_ENDPOINT_FALLBACKS,
   ANTIGRAVITY_ENDPOINT_PROD,
   ANTIGRAVITY_PROVIDER_ID,
@@ -23,6 +22,7 @@ import {
 } from "./plugin/auth";
 import {
   promptAddAnotherAccount,
+  type LoginMenuResult,
   promptLoginMode,
   promptProjectId,
   pause,
@@ -613,8 +613,7 @@ async function verifyAccountAccess(
     parsed.managedProjectId ??
     parsed.projectId ??
     account.managedProjectId ??
-    account.projectId ??
-    ANTIGRAVITY_DEFAULT_PROJECT_ID;
+    account.projectId;
 
   const headers: Record<string, string> = {
     ...getAntigravityHeaders(),
@@ -1123,9 +1122,10 @@ function parseDurationToMs(duration: string): number | null {
   const compoundRegex = /(\d+(?:\.\d+)?)(h|m(?!s)|s|ms)/gi;
   let totalMs = 0;
   let matchFound = false;
-  let match;
+  let match: RegExpExecArray | null;
 
-  while ((match = compoundRegex.exec(duration)) !== null) {
+  match = compoundRegex.exec(duration);
+  while (match !== null) {
     matchFound = true;
     const value = parseFloat(match[1]!);
     const unit = match[2]!.toLowerCase();
@@ -1143,6 +1143,7 @@ function parseDurationToMs(duration: string): number | null {
         totalMs += value;
         break;
     }
+    match = compoundRegex.exec(duration);
   }
 
   return matchFound ? totalMs : null;
@@ -1642,8 +1643,6 @@ export const createAntigravityPlugin =
 
         // Get access token and project ID
         const parts = parseRefreshParts(auth.refresh);
-        const projectId =
-          parts.managedProjectId || parts.projectId || "unknown";
 
         // Ensure we have a valid access token
         let accessToken = auth.access;
@@ -1663,6 +1662,13 @@ export const createAntigravityPlugin =
         if (!accessToken) {
           return "Error: No valid access token available. Please run `opencode auth login` to re-authenticate.";
         }
+
+        const projectContext = await ensureProjectContext(auth);
+        const projectId =
+          parts.managedProjectId ||
+          parts.projectId ||
+          projectContext.effectiveProjectId ||
+          "";
 
         return executeSearch(
           {
@@ -3375,7 +3381,7 @@ export const createAntigravityPlugin =
                 let refreshAccountIndex: number | undefined;
                 const existingStorage = await loadAccounts();
                 if (existingStorage && existingStorage.accounts.length > 0) {
-                  let menuResult;
+                  let menuResult: LoginMenuResult;
                   while (true) {
                     const now = Date.now();
                     const existingAccounts = existingStorage.accounts.map(
