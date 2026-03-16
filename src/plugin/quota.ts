@@ -1,4 +1,5 @@
 import {
+  ANTIGRAVITY_DEFAULT_PROJECT_ID,
   ANTIGRAVITY_ENDPOINT_PROD,
   getAntigravityHeaders,
   ANTIGRAVITY_PROVIDER_ID,
@@ -13,6 +14,10 @@ import type { PluginClient, OAuthAuthDetails } from "./types";
 import type { AccountMetadataV3 } from "./storage";
 
 const FETCH_TIMEOUT_MS = 10000;
+
+function resolveQuotaProjectId(projectId: string): string {
+  return projectId || ANTIGRAVITY_DEFAULT_PROJECT_ID;
+}
 
 export type QuotaGroup = "claude" | "gemini-pro" | "gemini-flash";
 
@@ -188,16 +193,16 @@ async function fetchAvailableModels(
   projectId: string,
 ): Promise<FetchAvailableModelsResponse> {
   const endpoint = ANTIGRAVITY_ENDPOINT_PROD;
-  const quotaUserAgent = getAntigravityHeaders()["User-Agent"] || "antigravity/windows/amd64";
+  const quotaHeaders = getAntigravityHeaders();
   const errors: string[] = [];
 
-  const body = projectId ? { project: projectId } : {};
+  const body = { project: resolveQuotaProjectId(projectId) };
   const response = await fetchWithTimeout(`${endpoint}/v1internal:fetchAvailableModels`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
-      "User-Agent": quotaUserAgent,
+      ...quotaHeaders,
     },
     body: JSON.stringify(body),
   });
@@ -220,7 +225,7 @@ async function fetchGeminiCliQuota(
   projectId: string,
 ): Promise<RetrieveUserQuotaResponse> {
   const endpoint = ANTIGRAVITY_ENDPOINT_PROD;
-  const body = projectId ? { project: projectId } : {};
+  const body = { project: resolveQuotaProjectId(projectId) };
   
   try {
     const response = await fetchWithTimeout(`${endpoint}/v1internal:retrieveUserQuota`, {
@@ -389,3 +394,9 @@ export async function checkAccountsQuota(
   logQuotaFetch("complete", accounts.length, `ok=${results.filter(r => r.status === "ok").length} errors=${results.filter(r => r.status === "error").length}`);
   return results;
 }
+
+export const __testExports = {
+  resolveQuotaProjectId,
+  fetchAvailableModels,
+  fetchGeminiCliQuota,
+};
