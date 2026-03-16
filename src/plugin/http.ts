@@ -17,10 +17,26 @@ export async function fetchWithTimeout(
   timeoutMs = DEFAULT_FETCH_TIMEOUT_MS,
 ): Promise<Response> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const upstreamSignal = options.signal;
+  const onUpstreamAbort = (): void => {
+    controller.abort(upstreamSignal?.reason);
+  };
+  const timeout = setTimeout(() => {
+    controller.abort(new Error("Fetch timeout"));
+  }, timeoutMs);
+
+  if (upstreamSignal) {
+    if (upstreamSignal.aborted) {
+      controller.abort(upstreamSignal.reason);
+    } else {
+      upstreamSignal.addEventListener("abort", onUpstreamAbort, { once: true });
+    }
+  }
+
   try {
     return await fetch(url, { ...options, signal: controller.signal });
   } finally {
     clearTimeout(timeout);
+    upstreamSignal?.removeEventListener("abort", onUpstreamAbort);
   }
 }

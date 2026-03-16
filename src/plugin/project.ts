@@ -4,10 +4,13 @@ import {
   ANTIGRAVITY_LOAD_ENDPOINTS,
 } from "../constants";
 import { formatRefreshParts, parseRefreshParts } from "./auth";
+import { fetchWithTimeout } from "./http";
 import { createLogger } from "./logger";
 import type { OAuthAuthDetails, ProjectContextResult } from "./types";
 
 const log = createLogger("project");
+const LOAD_PROJECT_TIMEOUT_MS = 12_000;
+const ONBOARD_PROJECT_TIMEOUT_MS = 20_000;
 
 const projectContextResultCache = new Map<string, ProjectContextResult>();
 const projectContextPendingCache = new Map<string, Promise<ProjectContextResult>>();
@@ -136,13 +139,14 @@ export async function loadManagedProject(
 
   for (const baseEndpoint of loadEndpoints) {
     try {
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `${baseEndpoint}/v1internal:loadCodeAssist`,
         {
           method: "POST",
           headers: loadHeaders,
           body: JSON.stringify(requestBody),
         },
+        LOAD_PROJECT_TIMEOUT_MS,
       );
 
       if (!response.ok) {
@@ -179,7 +183,7 @@ export async function onboardManagedProject(
   for (const baseEndpoint of ANTIGRAVITY_ENDPOINT_FALLBACKS) {
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       try {
-        const response = await fetch(
+        const response = await fetchWithTimeout(
           `${baseEndpoint}/v1internal:onboardUser`,
           {
             method: "POST",
@@ -190,6 +194,7 @@ export async function onboardManagedProject(
             },
             body: JSON.stringify(requestBody),
           },
+          ONBOARD_PROJECT_TIMEOUT_MS,
         );
 
         if (!response.ok) {
