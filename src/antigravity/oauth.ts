@@ -11,6 +11,7 @@ import {
   GEMINI_CLI_HEADERS,
   GEMINI_CLI_CLIENT_ID,
   GEMINI_CLI_CLIENT_SECRET,
+  GEMINI_CLI_REDIRECT_URI,
   GEMINI_CLI_SCOPES,
 } from "../constants";
 import { createLogger } from "../plugin/logger";
@@ -282,7 +283,7 @@ export async function authorizeGeminiCli(): Promise<AntigravityAuthorization> {
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   url.searchParams.set("client_id", GEMINI_CLI_CLIENT_ID);
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("redirect_uri", "http://localhost:9004");
+  url.searchParams.set("redirect_uri", GEMINI_CLI_REDIRECT_URI);
   url.searchParams.set("scope", GEMINI_CLI_SCOPES.join(" "));
   url.searchParams.set("code_challenge", pkce.challenge);
   url.searchParams.set("code_challenge_method", "S256");
@@ -321,7 +322,7 @@ export async function exchangeGeminiCli(
         client_secret: GEMINI_CLI_CLIENT_SECRET,
         code,
         grant_type: "authorization_code",
-        redirect_uri: "http://localhost:9004",
+        redirect_uri: GEMINI_CLI_REDIRECT_URI,
         code_verifier: verifier,
       }),
     });

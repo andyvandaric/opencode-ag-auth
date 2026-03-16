@@ -73,6 +73,7 @@ export const GEMINI_CLI_CLIENT_ID = "681255809395-uo3ioeahlrs9oiph0qk6n1j1n1uqqu
  * Client secret for the Gemini CLI OAuth application.
  */
 export const GEMINI_CLI_CLIENT_SECRET = "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";
+export const GEMINI_CLI_REDIRECT_URI = "http://localhost:9004";
 
 /**
  * Scopes required for Gemini CLI OAuth.

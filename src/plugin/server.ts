@@ -8,6 +8,7 @@ interface OAuthListenerOptions {
    * How long to wait for the OAuth redirect before timing out (in milliseconds).
    */
   timeoutMs?: number;
+  redirectUri?: string;
 }
 
 export interface OAuthListener {
@@ -20,9 +21,6 @@ export interface OAuthListener {
    */
   close(): Promise<void>;
 }
-
-const redirectUri = new URL(ANTIGRAVITY_REDIRECT_URI);
-const callbackPath = redirectUri.pathname || "/";
 
 /**
  * Detect if running in OrbStack Docker with --network host mode.
@@ -138,8 +136,13 @@ function getBindAddress(): string {
  * and resolves with the captured callback URL.
  */
 export async function startOAuthListener(
-  { timeoutMs = 5 * 60 * 1000 }: OAuthListenerOptions = {},
+  {
+    timeoutMs = 5 * 60 * 1000,
+    redirectUri: redirectUriValue = ANTIGRAVITY_REDIRECT_URI,
+  }: OAuthListenerOptions = {},
 ): Promise<OAuthListener> {
+  const redirectUri = new URL(redirectUriValue);
+  const callbackPath = redirectUri.pathname || "/";
   const port = redirectUri.port
     ? Number.parseInt(redirectUri.port, 10)
     : redirectUri.protocol === "https:"
