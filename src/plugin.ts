@@ -106,6 +106,7 @@ import type {
   Provider,
 } from "./plugin/types";
 import { configureProxy } from "./plugin/proxy";
+import { isWSL, isWSL2, isRemoteEnvironment } from "./plugin/environment";
 
 // Configure proxy if environment variables are set
 configureProxy();
@@ -265,49 +266,7 @@ function clearWarmupAttempt(sessionId: string): void {
   warmupAttemptedSessionIds.delete(sessionId);
 }
 
-function isWSL(): boolean {
-  if (process.platform !== "linux") return false;
-  try {
-    const { readFileSync } = require("node:fs");
-    const release = readFileSync("/proc/version", "utf8").toLowerCase();
-    return release.includes("microsoft") || release.includes("wsl");
-  } catch {
-    return false;
-  }
-}
-
-function isWSL2(): boolean {
-  if (!isWSL()) return false;
-  try {
-    const { readFileSync } = require("node:fs");
-    const version = readFileSync("/proc/version", "utf8").toLowerCase();
-    return version.includes("wsl2") || version.includes("microsoft-standard");
-  } catch {
-    return false;
-  }
-}
-
-function isRemoteEnvironment(): boolean {
-  if (
-    process.env.SSH_CLIENT ||
-    process.env.SSH_TTY ||
-    process.env.SSH_CONNECTION
-  ) {
-    return true;
-  }
-  if (process.env.REMOTE_CONTAINERS || process.env.CODESPACES) {
-    return true;
-  }
-  if (
-    process.platform === "linux" &&
-    !process.env.DISPLAY &&
-    !process.env.WAYLAND_DISPLAY &&
-    !isWSL()
-  ) {
-    return true;
-  }
-  return false;
-}
+// isWSL, isWSL2, isRemoteEnvironment are imported from ./plugin/environment
 
 function shouldSkipLocalServer(): boolean {
   return isWSL2() || isRemoteEnvironment();
@@ -1298,6 +1257,7 @@ interface RateLimitState {
 
 // Key format: `${accountIndex}:${quotaKey}` for per-account-per-quota tracking
 const rateLimitStateByAccountQuota = new Map<string, RateLimitState>();
+const RATE_LIMIT_STATE_MAX_ENTRIES = 200;
 
 // Track empty response retry attempts (ported from LLM-API-Key-Proxy)
 const emptyResponseAttempts = new Map<string, number>();
@@ -1377,6 +1337,30 @@ function resetAllRateLimitStateForAccount(accountIndex: number): void {
   for (const key of rateLimitStateByAccountQuota.keys()) {
     if (key.startsWith(`${accountIndex}:`)) {
       rateLimitStateByAccountQuota.delete(key);
+    }
+  }
+}
+
+/**
+ * Evict stale entries from rateLimitStateByAccountQuota and accountFailureState
+ * to prevent unbounded memory growth in long-running processes.
+ */
+function cleanupStaleTrackingState(): void {
+  const now = Date.now();
+
+  // Clean rateLimitStateByAccountQuota — drop entries older than reset window
+  if (rateLimitStateByAccountQuota.size > RATE_LIMIT_STATE_MAX_ENTRIES) {
+    for (const [key, state] of rateLimitStateByAccountQuota) {
+      if (now - state.lastAt > RATE_LIMIT_STATE_RESET_MS) {
+        rateLimitStateByAccountQuota.delete(key);
+      }
+    }
+  }
+
+  // Clean accountFailureState — drop entries older than failure-state reset window
+  for (const [key, state] of accountFailureState) {
+    if (now - state.lastFailureAt > FAILURE_STATE_RESET_MS) {
+      accountFailureState.delete(key);
     }
   }
 }
@@ -1884,6 +1868,8 @@ export const createAntigravityPlugin =
                 // Check for abort at the start of each iteration
                 checkAborted();
 
+                // Evict stale tracking entries to prevent unbounded Map growth
+                cleanupStaleTrackingState();
                 const accountCount = accountManager.getAccountCount();
                 const routingDecision = resolveHeaderRoutingDecision(
                   urlString,

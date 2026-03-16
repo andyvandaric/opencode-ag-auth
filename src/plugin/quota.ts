@@ -13,8 +13,7 @@ import { refreshAccessToken } from "./token";
 import { getModelFamily } from "./transform/model-resolver";
 import type { PluginClient, OAuthAuthDetails } from "./types";
 import type { AccountMetadataV3 } from "./storage";
-
-const FETCH_TIMEOUT_MS = 10000;
+import { fetchWithTimeout } from "./http";
 
 function resolveQuotaProjectId(projectId: string): string {
   return projectId || ANTIGRAVITY_DEFAULT_PROJECT_ID;
@@ -179,15 +178,7 @@ function aggregateQuota(models?: Record<string, FetchAvailableModelEntry>): Quot
   return { groups, modelCount: totalCount };
 }
 
-async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...options, signal: controller.signal });
-  } finally {
-    clearTimeout(timeout);
-  }
-}
+
 
 async function fetchAvailableModels(
   accessToken: string,
