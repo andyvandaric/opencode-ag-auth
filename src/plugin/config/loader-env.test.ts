@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { join } from "node:path";
 import { loadConfig } from "./loader";
 
 describe("Config Loader Environment Overrides", () => {
@@ -7,6 +8,10 @@ describe("Config Loader Environment Overrides", () => {
   beforeEach(() => {
     vi.resetModules();
     process.env = { ...originalEnv };
+    process.env.OPENCODE_CONFIG_DIR = join(
+      "/tmp",
+      `opencode-loader-env-${process.pid}-${Date.now()}`,
+    );
   });
 
   afterEach(() => {
