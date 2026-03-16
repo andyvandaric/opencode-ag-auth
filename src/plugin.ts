@@ -61,6 +61,7 @@ import { startOAuthListener, type OAuthListener } from "./plugin/server";
 import {
   clearAccounts,
   loadAccounts,
+  loadAccountsWithStatus,
   saveAccounts,
   saveAccountsReplace,
 } from "./plugin/storage";
@@ -281,7 +282,21 @@ async function persistAccountPool(
 
   // If replaceAll is true (fresh login), start with empty accounts
   // Otherwise, load existing accounts and merge
-  const stored = replaceAll ? null : await loadAccounts();
+  const storedResult = replaceAll
+    ? { status: "not_found" as const }
+    : await loadAccountsWithStatus();
+
+  if (!replaceAll && storedResult.status !== "ok" && storedResult.status !== "not_found") {
+    const detail =
+      storedResult.status === "invalid"
+        ? "Account storage is invalid or corrupted."
+        : "Account storage could not be read.";
+    throw new Error(
+      `${detail} Refusing to merge new OAuth accounts to avoid data loss. Fix ~/.config/opencode/antigravity-accounts.json and retry.`,
+    );
+  }
+
+  const stored = storedResult.status === "ok" ? storedResult.storage ?? null : null;
   const accounts = stored?.accounts ? [...stored.accounts] : [];
 
   const indexByRefreshToken = new Map<string, number>();
@@ -3287,7 +3302,22 @@ export const createAntigravityPlugin =
                         variant: "success",
                       },
                     });
-                  } catch {}
+                  } catch (error) {
+                    const message =
+                      error instanceof Error ? error.message : String(error);
+                    console.warn(
+                      `[opencode-ag-auth] Failed to persist authenticated account: ${message}`,
+                    );
+                    try {
+                      await client.tui.showToast({
+                        body: {
+                          message: `Failed to save account: ${message}`,
+                          variant: "error",
+                        },
+                      });
+                    } catch {}
+                    throw error;
+                  }
 
                   try {
                     if (refreshAccountIndex !== undefined) {
@@ -3478,7 +3508,16 @@ export const createAntigravityPlugin =
                         if (result.type === "success") {
                           try {
                             await persistAccountPool([result], false);
-                          } catch {}
+                          } catch (error) {
+                            const message =
+                              error instanceof Error
+                                ? error.message
+                                : String(error);
+                            return {
+                              type: "failed",
+                              error: `Authenticated but failed to persist account: ${message}`,
+                            };
+                          }
 
                           const newTotal = existingCount + 1;
                           const toastMessage =
@@ -3538,8 +3577,13 @@ export const createAntigravityPlugin =
                     try {
                       // TUI flow adds to existing accounts (non-destructive)
                       await persistAccountPool([result], false);
-                    } catch {
-                      // ignore
+                    } catch (error) {
+                      const message =
+                        error instanceof Error ? error.message : String(error);
+                      return {
+                        type: "failed",
+                        error: `Authenticated but failed to persist account: ${message}`,
+                      };
                     }
 
                     // Show appropriate toast message
