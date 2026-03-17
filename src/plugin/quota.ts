@@ -36,7 +36,7 @@ export interface QuotaSummary {
 // Gemini CLI quota types
 export interface GeminiCliQuotaModel {
   modelId: string;
-  remainingFraction: number;
+  remainingFraction?: number;
   resetTime?: string;
 }
 
@@ -94,10 +94,9 @@ function buildAuthFromAccount(account: AccountMetadataV3): OAuthAuthDetails {
   };
 }
 
-function normalizeRemainingFraction(value: unknown): number {
-  // If value is missing or invalid, treat as exhausted (0%)
+function normalizeRemainingFraction(value: unknown): number | undefined {
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    return 0;
+    return undefined;
   }
   if (value < 0) return 0;
   if (value > 1) return 1;
@@ -399,7 +398,10 @@ export async function checkAccountsQuota(
 }
 
 export const __testExports = {
+  aggregateGeminiCliQuota,
+  aggregateQuota,
   resolveQuotaProjectId,
   fetchAvailableModels,
   fetchGeminiCliQuota,
+  normalizeRemainingFraction,
 };

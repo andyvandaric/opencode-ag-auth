@@ -2,8 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { GEMINI_CLI_HEADERS } from "../constants";
 import { __testExports } from "./quota";
 
-const { fetchAvailableModels, fetchGeminiCliQuota, resolveQuotaProjectId } =
-  __testExports;
+const {
+  aggregateQuota,
+  fetchAvailableModels,
+  fetchGeminiCliQuota,
+  resolveQuotaProjectId,
+} = __testExports;
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -56,5 +60,70 @@ describe("quota request helpers", () => {
     expect(headers["Client-Metadata"]).toBe(
       GEMINI_CLI_HEADERS["Client-Metadata"],
     );
+  });
+});
+
+describe("quota aggregation", () => {
+  it("keeps remainingFraction undefined when the only model omits it", () => {
+    const summary = aggregateQuota({
+      "gemini-3-pro": {
+        quotaInfo: {},
+      },
+    });
+
+    expect(summary.groups["gemini-pro"]).toEqual({
+      remainingFraction: undefined,
+      resetTime: undefined,
+      modelCount: 1,
+    });
+  });
+
+  it("ignores missing remainingFraction when another model has quota data", () => {
+    const summary = aggregateQuota({
+      "gemini-3-pro": {
+        quotaInfo: {
+          remainingFraction: 0.8,
+        },
+      },
+      "gemini-3-pro-preview": {
+        quotaInfo: {},
+      },
+    });
+
+    expect(summary.groups["gemini-pro"]?.remainingFraction).toBe(0.8);
+  });
+
+  it("keeps the minimum defined remainingFraction across models", () => {
+    const summary = aggregateQuota({
+      "gemini-3-pro": {
+        quotaInfo: {
+          remainingFraction: 0.8,
+        },
+      },
+      "gemini-3-pro-preview": {
+        quotaInfo: {
+          remainingFraction: 0.2,
+        },
+      },
+    });
+
+    expect(summary.groups["gemini-pro"]?.remainingFraction).toBe(0.2);
+  });
+
+  it("ignores non-finite remainingFraction values", () => {
+    const summary = aggregateQuota({
+      "gemini-3-pro": {
+        quotaInfo: {
+          remainingFraction: 0.8,
+        },
+      },
+      "gemini-3-pro-preview": {
+        quotaInfo: {
+          remainingFraction: Number.NaN,
+        },
+      },
+    });
+
+    expect(summary.groups["gemini-pro"]?.remainingFraction).toBe(0.8);
   });
 });
