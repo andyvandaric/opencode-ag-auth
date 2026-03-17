@@ -6,7 +6,7 @@ runs:
   steps:
     - name: Build
       shell: bash
-      run: pnpm run build
+      run: bun run build
 
     - name: Verify build artifacts
       shell: bash
