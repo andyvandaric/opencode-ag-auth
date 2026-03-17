@@ -80,6 +80,7 @@ import {
 } from "./plugin/config";
 import {
   createSessionRecoveryHook,
+  detectErrorType,
   getRecoverySuccessToast,
 } from "./plugin/recovery";
 import { checkAccountsQuota } from "./plugin/quota";
@@ -445,6 +446,20 @@ function headerStyleToQuotaKey(
   return headerStyle === "antigravity" ? "gemini-antigravity" : "gemini-cli";
 }
 
+function shouldSendRecoveryResumePrompt(input: {
+  recovered: boolean;
+  sessionID?: string;
+  autoResume: boolean;
+  errorType: ReturnType<typeof detectErrorType>;
+}): boolean {
+  return (
+    input.recovered &&
+    !!input.sessionID &&
+    input.autoResume &&
+    input.errorType === "tool_result_missing"
+  );
+}
+
 // Track empty response retry attempts per request-id
 const emptyResponseAttempts = new Map<string, number>();
 
@@ -552,8 +567,9 @@ export const createAntigravityPlugin =
         const sessionID = props?.sessionID as string | undefined;
         const messageID = props?.messageID as string | undefined;
         const error = props?.error;
+        const errorType = detectErrorType(error);
 
-        if (sessionRecovery.isRecoverableError(error)) {
+        if (errorType !== null) {
           const messageInfo = {
             id: messageID,
             role: "assistant" as const,
@@ -565,17 +581,25 @@ export const createAntigravityPlugin =
           const recovered =
             await sessionRecovery.handleSessionRecovery(messageInfo);
 
-          // Only send "continue" AFTER successful tool_result_missing recovery
-          // (thinking recoveries already resume inside handleSessionRecovery)
-          if (recovered && sessionID && config.auto_resume) {
-            // For tool_result_missing, we need to send continue after injecting tool_results
-            await client.session
-              .prompt({
-                path: { id: sessionID },
-                body: { parts: [{ type: "text", text: config.resume_text }] },
-                query: { directory },
+          if (recovered) {
+            if (
+              shouldSendRecoveryResumePrompt({
+                recovered,
+                sessionID,
+                autoResume: config.auto_resume,
+                errorType,
               })
-              .catch(() => {});
+            ) {
+              const recoverySessionID = sessionID;
+              // For tool_result_missing, we need to send continue after injecting tool_results
+              await client.session
+                .prompt({
+                  path: { id: recoverySessionID! },
+                  body: { parts: [{ type: "text", text: config.resume_text }] },
+                  query: { directory },
+                })
+                .catch(() => {});
+            }
 
             // Show success toast (respects toast_scope for child sessions)
             const successToast = getRecoverySuccessToast();
@@ -3563,4 +3587,5 @@ export const __testExports = {
   getSoftQuotaThresholdForHeaderStyle,
   resolveHeaderRoutingDecision,
   resolveQuotaFallbackHeaderStyle,
+  shouldSendRecoveryResumePrompt,
 };
